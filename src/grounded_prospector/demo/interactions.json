@@ -1,0 +1,202 @@
+{
+  "_comment": "Fabricated data mirroring the real Interactions API schema. No real people. See demo/__init__.py.",
+  "Dune & Palm Events": {
+    "id": "int_demo_dune_palm",
+    "status": "completed",
+    "model": "gemini-3.6-flash",
+    "steps": [
+      {
+        "type": "google_search_call",
+        "id": "call_demo_1",
+        "search_type": "web_search",
+        "arguments": {
+          "queries": [
+            "site:linkedin.com/in \"Dune & Palm Events\" \"Dubai\" (\"MICE\" OR \"Incentive\" OR \"Events\" OR \"Concierge\" OR \"Outbound\" OR \"Director\" OR \"Head of\")"
+          ]
+        }
+      },
+      {
+        "type": "google_search_result",
+        "call_id": "call_demo_1",
+        "result": [
+          {
+            "search_suggestions": "<div class=\"gs-container\">Search suggestions rendering is required by the Grounding with Google Search terms of service.</div>"
+          }
+        ]
+      },
+      {
+        "type": "model_output",
+        "content": [
+          {
+            "type": "text",
+            "text": "The search returned four LinkedIn profiles associated with Dune & Palm Events: Layla Haddad, Ahmed bin Rashid Al Maktoum and Priya Nair, plus a Gulf Business listicle that is not a profile.",
+            "annotations": [
+              {
+                "type": "url_citation",
+                "url": "https://ae.linkedin.com/in/layla-haddad",
+                "title": "Layla Haddad - MICE Manager - Dune & Palm Events | LinkedIn",
+                "start_index": 46,
+                "end_index": 58
+              },
+              {
+                "type": "url_citation",
+                "url": "https://www.linkedin.com/in/ahmed-bin-rashid-al-maktoum",
+                "title": "Ahmed bin Rashid Al Maktoum - Head of Incentive Travel - Dune & Palm Events | LinkedIn",
+                "start_index": 60,
+                "end_index": 87
+              },
+              {
+                "type": "url_citation",
+                "url": "https://www.linkedin.com/in/priya-nair/",
+                "title": "Priya Nair - Events Director - Dune & Palm Events | LinkedIn",
+                "start_index": 92,
+                "end_index": 102
+              },
+              {
+                "type": "url_citation",
+                "url": "https://ae.linkedin.com/in/Layla-Haddad?trk=public_profile_browsemap",
+                "title": "Layla Haddad - MICE Manager - Dune & Palm Events | LinkedIn",
+                "start_index": 46,
+                "end_index": 58
+              },
+              {
+                "type": "url_citation",
+                "url": "https://gulfbusiness.example/top-10-event-agencies-dubai-2026",
+                "title": "Top 10 Event Agencies in Dubai 2026 - Gulf Business",
+                "start_index": 115,
+                "end_index": 132
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "usage": {
+      "grounding_tool_count": [{ "type": "google_search", "count": 1 }],
+      "total_input_tokens": 412,
+      "total_output_tokens": 96,
+      "total_tokens": 508
+    }
+  },
+  "Falcon Bay Travel": {
+    "id": "int_demo_falcon_bay",
+    "status": "completed",
+    "model": "gemini-3.6-flash",
+    "steps": [
+      {
+        "type": "google_search_call",
+        "id": "call_demo_2",
+        "search_type": "web_search",
+        "arguments": {
+          "queries": [
+            "site:linkedin.com/in \"Falcon Bay Travel\" \"Dubai\" (\"MICE\" OR \"Incentive\" OR \"Events\" OR \"Concierge\" OR \"Outbound\" OR \"Director\" OR \"Head of\")"
+          ]
+        }
+      },
+      {
+        "type": "google_search_result",
+        "call_id": "call_demo_2",
+        "result": [
+          {
+            "search_suggestions": "<div class=\"gs-container\">Search suggestions rendering is required by the Grounding with Google Search terms of service.</div>"
+          }
+        ]
+      },
+      {
+        "type": "model_output",
+        "content": [
+          {
+            "type": "text",
+            "text": "One profile at Falcon Bay Travel appeared, along with a consultant at a different agency and the company page itself.",
+            "annotations": [
+              {
+                "type": "url_citation",
+                "url": "https://www.linkedin.com/in/marco-ferretti",
+                "title": "Marco Ferretti - Director of Outbound Travel - Falcon Bay Travel | LinkedIn",
+                "start_index": 4,
+                "end_index": 11
+              },
+              {
+                "type": "url_citation",
+                "url": "https://www.linkedin.com/in/sara-okonkwo",
+                "title": "Sara Okonkwo - MICE Consultant - Horizon Voyages | LinkedIn",
+                "start_index": 45,
+                "end_index": 55
+              },
+              {
+                "type": "url_citation",
+                "url": "https://www.linkedin.com/company/falcon-bay-travel",
+                "title": "Falcon Bay Travel | LinkedIn",
+                "start_index": 96,
+                "end_index": 108
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "usage": {
+      "grounding_tool_count": [{ "type": "google_search", "count": 2 }],
+      "total_input_tokens": 405,
+      "total_output_tokens": 71,
+      "total_tokens": 476
+    }
+  },
+  "Majlis Concierge": {
+    "id": "int_demo_majlis",
+    "status": "completed",
+    "model": "gemini-3.6-flash",
+    "steps": [
+      {
+        "type": "google_search_call",
+        "id": "call_demo_3",
+        "search_type": "web_search",
+        "arguments": {
+          "queries": [
+            "site:linkedin.com/in \"Majlis Concierge\" \"Dubai\" (\"MICE\" OR \"Incentive\" OR \"Events\" OR \"Concierge\" OR \"Outbound\" OR \"Director\" OR \"Head of\")"
+          ]
+        }
+      },
+      {
+        "type": "google_search_result",
+        "call_id": "call_demo_3",
+        "result": [
+          {
+            "search_suggestions": "<div class=\"gs-container\">Search suggestions rendering is required by the Grounding with Google Search terms of service.</div>"
+          }
+        ]
+      },
+      {
+        "type": "model_output",
+        "content": [
+          {
+            "type": "text",
+            "text": "Two profiles were returned, one of which has no headline in the search result.",
+            "annotations": [
+              {
+                "type": "url_citation",
+                "url": "https://ae.linkedin.com/in/yusuf-demir",
+                "title": "Yusuf Demir - Lifestyle & Concierge Director - Majlis Concierge | LinkedIn",
+                "start_index": 4,
+                "end_index": 12
+              },
+              {
+                "type": "url_citation",
+                "url": "https://www.linkedin.com/in/elena-rossi",
+                "title": "Elena Rossi | LinkedIn",
+                "start_index": 21,
+                "end_index": 29
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "usage": {
+      "grounding_tool_count": [{ "type": "google_search", "count": 1 }],
+      "total_input_tokens": 398,
+      "total_output_tokens": 54,
+      "total_tokens": 452
+    }
+  }
+}

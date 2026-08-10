@@ -1,0 +1,18 @@
+# Target list used by `grounded-prospector run --demo`.
+# These agencies are fictional; see demo/__init__.py.
+location: Dubai
+roles:
+  - MICE
+  - Incentive
+  - Events
+  - Concierge
+  - Outbound
+  - Director
+  - Head of
+agencies:
+  - name: Dune & Palm Events
+    segment: mice
+  - name: Falcon Bay Travel
+    segment: boutique
+  - name: Majlis Concierge
+    segment: concierge

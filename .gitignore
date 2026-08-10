@@ -1,0 +1,40 @@
+# --- Secrets -------------------------------------------------------------
+# The API key lives here and must never be committed. .env.example is tracked.
+.env
+
+# --- Output ---------------------------------------------------------------
+# Generated prospect data contains real people's names and job titles.
+out/
+*.csv
+!tests/fixtures/*.csv
+
+# --- Cache ----------------------------------------------------------------
+.cache/
+.grounded_prospector_cache/
+
+# --- Python ---------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+
+# --- Tooling --------------------------------------------------------------
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# --- Editors --------------------------------------------------------------
+.idea/
+.vscode/
+*.swp
+.DS_Store
+
+# --- Personal working files (per global convention, not project artifacts) --
+LEARNING_NOTES.md
+TODO.md

@@ -1,0 +1,79 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # The suite must never reach the network. An accidental live call would fail
+  # here rather than quietly passing on a contributor's own credentials.
+  SERPER_API_KEY: ""
+  GEMINI_API_KEY: ""
+
+jobs:
+  test:
+    name: Python ${{ matrix.python-version }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+        os: [ubuntu-latest]
+        include:
+          # The primary consumer opens the CSV in Excel on Windows, so the
+          # encoding path is worth exercising on the platform that breaks it.
+          - python-version: "3.12"
+            os: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Lint
+        run: ruff check --output-format=github .
+
+      - name: Check formatting
+        run: ruff format --check .
+
+      - name: Type check
+        run: mypy --strict src
+
+      - name: Test
+        run: pytest --cov --cov-report=term-missing --cov-fail-under=85
+
+      - name: Verify the demo runs without any API key
+        run: grounded-prospector run --demo --out ci-out/prospects.csv
+
+      - name: Verify the demo produced prospects
+        shell: python
+        run: |
+          import csv
+          import sys
+
+          with open("ci-out/prospects.csv", encoding="utf-8-sig", newline="") as handle:
+              rows = list(csv.DictReader(handle))
+
+          if not rows:
+              sys.exit("demo run produced no prospects")
+
+          urls = [row["LinkedIn URL"] for row in rows]
+          if len(urls) != len(set(urls)):
+              sys.exit("demo run emitted duplicate profiles")
+
+          print(f"demo produced {len(rows)} unique prospects")

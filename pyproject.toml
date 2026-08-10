@@ -1,0 +1,155 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "grounded-prospector"
+version = "0.1.0"
+description = "Find B2B decision-makers via Google Search grounding, without scraping and without inventing people."
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.11"
+authors = [{ name = "Wojtek" }]
+keywords = ["b2b", "prospecting", "gemini", "grounding", "lead-generation", "osint"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Typing :: Typed",
+]
+dependencies = [
+    "google-genai>=2.17.0",
+    "httpx>=0.27",
+    "pydantic>=2.9",
+    "pydantic-settings>=2.5",
+    "pyyaml>=6.0",
+    "rich>=13.9",
+    "typer>=0.15",
+]
+
+[project.optional-dependencies]
+dev = [
+    "mypy>=1.13",
+    "pytest>=8.3",
+    "pytest-asyncio>=0.24",
+    "pytest-cov>=6.0",
+    "ruff>=0.8",
+    "types-pyyaml>=6.0",
+]
+
+[project.scripts]
+grounded-prospector = "grounded_prospector.cli:app"
+
+[project.urls]
+Homepage = "https://github.com/ShamanIsBack/grounded-prospector"
+Issues = "https://github.com/ShamanIsBack/grounded-prospector/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/grounded_prospector"]
+
+# ---------------------------------------------------------------------------
+# Tooling
+# ---------------------------------------------------------------------------
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # isort
+    "N",    # pep8-naming
+    "UP",   # pyupgrade
+    "B",    # flake8-bugbear
+    "A",    # flake8-builtins
+    "C4",   # flake8-comprehensions
+    "DTZ",  # flake8-datetimez -- timezone-aware datetimes only
+    "PT",   # flake8-pytest-style
+    "RET",  # flake8-return
+    "SIM",  # flake8-simplify
+    "ARG",  # flake8-unused-arguments
+    "PTH",  # flake8-use-pathlib
+    "ERA",  # eradicate commented-out code
+    "PL",   # pylint
+    "TRY",  # tryceratops
+    "RUF",  # ruff-specific
+    "D",    # pydocstyle
+    "ANN",  # flake8-annotations
+    "S",    # flake8-bandit
+]
+ignore = [
+    "D107",    # missing docstring in __init__ -- covered by the class docstring
+    "D203",    # incompatible with D211
+    "D213",    # incompatible with D212
+    "TRY003",  # long messages outside exception class -- we prefer readable errors
+    # En and em dashes are input data here, not typos: LinkedIn renders profile
+    # titles with all three dash characters and the parser must match each one.
+    "RUF001",
+    "RUF002",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = [
+    "S101",    # assert is the point of a test
+    "D",       # tests document themselves through their names
+    "ANN",     # annotating every fixture adds noise, not safety
+    "PLR2004", # magic values are the expected values in assertions
+]
+"scripts/*" = ["S101", "T201"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.pylint]
+# Providers and retry helpers take many *keyword-only* parameters, every one of
+# them defaulted and named at the call site. The readability problem PLR0913
+# guards against -- a wall of positional arguments -- cannot occur there.
+max-args = 12
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_unreachable = true
+warn_return_any = true
+disallow_any_generics = true
+no_implicit_reexport = true
+show_error_codes = true
+pretty = true
+
+[[tool.mypy.overrides]]
+# The Gemini SDK ships partial stubs; its dynamic response objects are narrowed
+# defensively at the adapter boundary instead (see providers/gemini.py).
+module = ["google.genai.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+asyncio_mode = "auto"
+addopts = [
+    "--strict-markers",
+    "--strict-config",
+    "-ra",
+]
+
+[tool.coverage.run]
+source = ["src/grounded_prospector"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+    "\\.\\.\\.",
+]

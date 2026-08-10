@@ -1,0 +1,101 @@
+{
+  "_comment": "Fabricated Serper-shaped responses. No real people or companies. See demo/__init__.py. Recordings are keyed by agency, then by page number.",
+  "Dune & Palm Events": {
+    "1": {
+      "searchInformation": { "totalResults": 14 },
+      "organic": [
+        {
+          "position": 1,
+          "title": "Layla Haddad - MICE Manager - Dune & Palm Events | LinkedIn",
+          "link": "https://ae.linkedin.com/in/layla-haddad",
+          "snippet": "Dubai, United Arab Emirates · MICE Manager · Dune & Palm Events · Ten years planning corporate incentive programmes across the GCC."
+        },
+        {
+          "position": 2,
+          "title": "Ahmed bin Rashid Al Maktoum - Head of Incentive Travel - Dune & Palm Events | LinkedIn",
+          "link": "https://www.linkedin.com/in/ahmed-bin-rashid-al-maktoum",
+          "snippet": "Dubai, United Arab Emirates · Head of Incentive Travel · Dune & Palm Events · Building outbound programmes to Central Europe."
+        },
+        {
+          "position": 3,
+          "title": "Priya Nair - Events Director - Dune & Palm Events | LinkedIn",
+          "link": "https://www.linkedin.com/in/priya-nair/",
+          "snippet": "Dubai · Events Director · Dune & Palm Events · 500+ connections."
+        },
+        {
+          "position": 4,
+          "title": "Layla Haddad - MICE Manager - Dune & Palm Events | LinkedIn",
+          "link": "https://ae.linkedin.com/in/Layla-Haddad?trk=public_profile_browsemap",
+          "snippet": "Dubai, United Arab Emirates · MICE Manager · Dune & Palm Events."
+        },
+        {
+          "position": 5,
+          "title": "Top 10 Event Agencies in Dubai 2026 - Gulf Business",
+          "link": "https://gulfbusiness.example/top-10-event-agencies-dubai-2026",
+          "snippet": "Our annual roundup of the event agencies shaping business travel in the Emirates."
+        }
+      ]
+    },
+    "2": {
+      "searchInformation": { "totalResults": 14 },
+      "organic": [
+        {
+          "position": 1,
+          "title": "Tomasz Wierzbicki - Senior Incentive Producer - Dune & Palm Events | LinkedIn",
+          "link": "https://ae.linkedin.com/in/tomasz-wierzbicki",
+          "snippet": "Dubai, United Arab Emirates · Senior Incentive Producer · Dune & Palm Events · Specialises in European destinations."
+        },
+        {
+          "position": 2,
+          "title": "Dune & Palm Events | LinkedIn",
+          "link": "https://www.linkedin.com/company/dune-palm-events",
+          "snippet": "Event management company based in Dubai. 42 followers."
+        }
+      ]
+    }
+  },
+  "Falcon Bay Travel": {
+    "1": {
+      "searchInformation": { "totalResults": 6 },
+      "organic": [
+        {
+          "position": 1,
+          "title": "Marco Ferretti - Director of Outbound Travel - Falcon Bay Travel | LinkedIn",
+          "link": "https://www.linkedin.com/in/marco-ferretti",
+          "snippet": "Dubai, United Arab Emirates · Director of Outbound Travel · Falcon Bay Travel · Long-haul leisure and small-group incentives."
+        },
+        {
+          "position": 2,
+          "title": "Sara Okonkwo - MICE Consultant - Horizon Voyages | LinkedIn",
+          "link": "https://www.linkedin.com/in/sara-okonkwo",
+          "snippet": "Dubai · MICE Consultant · Horizon Voyages · Previously worked with several Dubai agencies."
+        },
+        {
+          "position": 3,
+          "title": "Falcon Bay Travel | LinkedIn",
+          "link": "https://www.linkedin.com/company/falcon-bay-travel",
+          "snippet": "Boutique travel agency. 128 followers."
+        }
+      ]
+    }
+  },
+  "Majlis Concierge": {
+    "1": {
+      "searchInformation": { "totalResults": 3 },
+      "organic": [
+        {
+          "position": 1,
+          "title": "Yusuf Demir - Lifestyle & Concierge Director - Majlis Concierge | LinkedIn",
+          "link": "https://ae.linkedin.com/in/yusuf-demir",
+          "snippet": "Dubai, United Arab Emirates · Lifestyle & Concierge Director · Majlis Concierge · Private client travel."
+        },
+        {
+          "position": 2,
+          "title": "Elena Rossi | LinkedIn",
+          "link": "https://www.linkedin.com/in/elena-rossi",
+          "snippet": "Dubai · 500+ connections · View Elena Rossi's profile on LinkedIn."
+        }
+      ]
+    }
+  }
+}
