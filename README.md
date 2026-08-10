@@ -149,6 +149,10 @@ reasoning is in [`docs/DECISIONS.md`](docs/DECISIONS.md) (ADR-006).
 `out/prospects.csv` (UTF-8 with BOM, so Excel renders non-ASCII names correctly), alongside
 `prospects.json` and `run_report.json`.
 
+> **[`INSTRUCTIONS.md`](INSTRUCTIONS.md)** is the operator's runbook: how to probe a new target
+> list before spending, which rows to trust and in what order, what each review reason means,
+> and how to refine results for free against the cache.
+
 Evidence columns are filled by the tool: name, headline, company from title, target agency,
 segment, LinkedIn URL, location hint, confidence, needs-review flag and reasons, SERP
 position, snippet, raw title, source query, provider, timestamp.
