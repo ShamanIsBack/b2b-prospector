@@ -198,7 +198,7 @@ async def run_pipeline(
         agencies_searched=len(plan),
         queries_planned=len(plan),
         queries_executed=budget.spent,
-        grounded_searches_billed=billed,
+        searches_billed=billed,
         hits_total=len(all_hits),
         hits_linkedin=sum(1 for hit in all_hits if canonicalise_profile_url(hit.url)),
         prospects=len(prospects),

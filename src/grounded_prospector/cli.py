@@ -91,13 +91,12 @@ def _usd_per_1k(provider: str) -> float:
 
 
 def _estimate_cost(report: RunReport) -> float:
-    """Estimate the spend for a run, in USD."""
-    # Gemini bills per search the model chose to run, which is not the same as
-    # the number of prompts we sent; Serper bills per request.
-    billable = (
-        report.grounded_searches_billed if report.provider == "gemini" else report.queries_executed
-    )
-    return billable * _usd_per_1k(report.provider) / 1000
+    """Estimate the spend for a run, in USD.
+
+    Derived from what was actually billed, never from what was attempted: a run
+    served entirely from cache costs nothing and must report nothing.
+    """
+    return report.searches_billed * _usd_per_1k(report.provider) / 1000
 
 
 def _summary_table(report: RunReport, output: Path | None) -> Table:
@@ -108,7 +107,10 @@ def _summary_table(report: RunReport, output: Path | None) -> Table:
 
     table.add_row("Provider", report.provider)
     table.add_row("Agencies searched", str(report.agencies_searched))
-    table.add_row("Queries issued", str(report.queries_executed))
+    table.add_row(
+        "Queries",
+        f"{report.queries_executed} attempted, {report.searches_billed} billed",
+    )
     table.add_row(
         "Cache hits",
         f"{report.cache_hits} of {report.cache_hits + report.cache_misses} "

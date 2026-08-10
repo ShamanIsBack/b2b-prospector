@@ -43,7 +43,10 @@ class Settings(BaseSettings):
     # ceiling is configuration rather than something a caller can forget to pass.
     max_queries: int = Field(default=50, ge=1)
     max_pages: int = Field(default=3, ge=1)
-    results_per_page: int = Field(default=100, ge=1, le=100)
+    # Left unset by default: Serper rejects num > 10 on free accounts when the
+    # query uses search operators, which every X-ray query does. Paid plans may
+    # set this up to 100. See providers/serper.py.
+    results_per_page: int | None = Field(default=None, ge=1, le=100)
     concurrency: int = Field(default=3, ge=1, le=10)
     rate_limit_per_minute: int = Field(default=30, ge=1)
 

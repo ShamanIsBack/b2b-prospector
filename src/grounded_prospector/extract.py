@@ -56,6 +56,46 @@ _PARTS_INCLUDING_COMPANY = 3
 # Longer leading segments are prose, not a place name.
 _MAX_LOCATION_WORDS = 6
 
+# Invisible characters that arrive with real results and break things quietly.
+# Gulf and Arabic profile titles carry bidirectional control marks; snippets pick
+# up zero-width and non-breaking spaces. Left in place they produce names that
+# look correct on screen, compare unequal and sort strangely -- and they crash a
+# Windows console outright. Written as escapes so this source file itself
+# contains no invisible characters.
+# Codepoints, not literals: writing these as characters would put invisible
+# control marks into the source file itself, which linters rightly flag as an
+# obfuscation risk and which no reviewer could see.
+_INVISIBLE_CODEPOINTS = (
+    0x200B,  # zero-width space
+    0x200C,  # zero-width non-joiner
+    0x200D,  # zero-width joiner
+    0x200E,  # left-to-right mark
+    0x200F,  # right-to-left mark
+    0x2066,  # left-to-right isolate
+    0x2067,  # right-to-left isolate
+    0x2068,  # first-strong isolate
+    0x2069,  # pop directional isolate
+    0x202A,  # left-to-right embedding
+    0x202B,  # right-to-left embedding
+    0x202C,  # pop directional formatting
+    0x202D,  # left-to-right override
+    0x202E,  # right-to-left override
+    0xFEFF,  # byte-order mark
+)
+
+_INVISIBLE: dict[int, str | None] = dict.fromkeys(_INVISIBLE_CODEPOINTS, None)
+# Non-breaking and narrow non-breaking spaces become ordinary spaces.
+_INVISIBLE.update({0x00A0: " ", 0x202F: " "})
+
+
+def clean_text(text: str) -> str:
+    """Strip invisible formatting characters and collapse whitespace.
+
+    Applied to anything that will be parsed or compared. The original string is
+    still exported verbatim as evidence -- this only affects derived fields.
+    """
+    return " ".join(text.translate(_INVISIBLE).split())
+
 
 @dataclass(frozen=True)
 class ParsedTitle:
@@ -90,7 +130,7 @@ def parse_title(title: str) -> ParsedTitle:
     than raising.
     """
     # The pipe reliably fences off the site name; everything after it is furniture.
-    segments = [seg.strip() for seg in title.split("|")]
+    segments = [seg.strip() for seg in clean_text(title).split("|")]
     segments = _strip_trailing_noise(segments)
     if not segments:
         return ParsedTitle()
@@ -127,13 +167,33 @@ def split_name(name: str | None) -> tuple[str | None, str | None]:
     return first, " ".join(rest) or None
 
 
+def _looks_like_a_place(head: str) -> bool:
+    """Return whether a snippet's leading segment could be a location.
+
+    Rejects rather than guesses. The leading segment is also where connection
+    counts, localised field labels and prose appear.
+    """
+    # "500+ connections", "1.2K followers" and dates are not places.
+    if any(char.isdigit() for char in head):
+        return False
+
+    # Any label we did not recognise and strip, in any language. Google localises
+    # these, so an English word list is not enough: Arabic results open with
+    # "الخبرة: <employer>" ("Experience:"), a labelled field and not a place.
+    if ":" in head:
+        return False
+
+    if any(word in head.casefold() for word in ("connection", "follower", "experience")):
+        return False
+
+    return 1 <= len(head.split()) <= _MAX_LOCATION_WORDS
+
+
 def extract_location_hint(snippet: str | None) -> str | None:
     """Pull a location out of the leading segment of a search snippet.
 
     LinkedIn snippets conventionally open with the member's location followed by
-    a middot: ``"Dubai, United Arab Emirates · MICE Manager · ..."``. The leading
-    segment is also where connection counts and other non-locations appear, so
-    anything numeric or obviously not a place is rejected rather than guessed at.
+    a middot: ``"Dubai, United Arab Emirates · MICE Manager · ..."``.
 
     The result is a *hint* for a human reviewer. It is never used for scoring:
     treating a location string as evidence is what turns a search for people in a
@@ -142,25 +202,15 @@ def extract_location_hint(snippet: str | None) -> str | None:
     if not snippet:
         return None
 
-    head = snippet.split("·")[0].strip()
+    head = clean_text(snippet).split("·")[0].strip()
     head = re.sub(r"^location:\s*", "", head, flags=re.IGNORECASE).strip(" .,-–—")
-    if not head:
-        return None
 
-    # "500+ connections", "1.2K followers" and dates are not places.
-    if any(char.isdigit() for char in head):
-        return None
-    if any(word in head.casefold() for word in ("connection", "follower", "experience")):
-        return None
-    if not (1 <= len(head.split()) <= _MAX_LOCATION_WORDS):
-        return None
-
-    return head
+    return head if head and _looks_like_a_place(head) else None
 
 
 def _normalise(text: str) -> str:
     """Casefold and collapse to alphanumeric tokens for tolerant matching."""
-    return " ".join(re.findall(r"[a-z0-9]+", text.casefold()))
+    return " ".join(re.findall(r"[a-z0-9]+", clean_text(text).casefold()))
 
 
 def _agency_tokens(agency: str) -> list[str]:

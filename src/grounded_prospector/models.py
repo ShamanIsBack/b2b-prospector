@@ -110,8 +110,14 @@ class RunReport(BaseModel):
 
     agencies_searched: int = 0
     queries_planned: int = 0
+
+    # Lookups attempted, including those served from cache. Drives the budget.
     queries_executed: int = 0
-    grounded_searches_billed: int = 0
+
+    # Searches the backend actually charged for. Cache hits are not billed, and
+    # one Gemini prompt can trigger several billable searches -- so this is the
+    # only number cost may be derived from.
+    searches_billed: int = 0
 
     cache_hits: int = 0
     cache_misses: int = 0

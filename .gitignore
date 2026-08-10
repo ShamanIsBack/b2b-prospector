@@ -2,6 +2,10 @@
 # The API key lives here and must never be committed. .env.example is tracked.
 .env
 
+# --- Local config ----------------------------------------------------------
+# Your own target list. agencies.example.yaml is the tracked template.
+agencies.yaml
+
 # --- Output ---------------------------------------------------------------
 # Generated prospect data contains real people's names and job titles.
 out/

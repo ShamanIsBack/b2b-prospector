@@ -215,3 +215,55 @@ and it is the reason this reversal cost roughly a day rather than a rewrite.
 
 Three of four objections landing is a normal outcome for a first architecture, and the one
 that did not land was worth defending rather than conceding.
+
+---
+
+## ADR-007 — Let the search API choose its own page size
+
+**Status:** accepted · **Date:** 2026-08-10 · **Source:** live testing, not documentation
+
+### Context
+
+The Serper adapter was written to request `num=100`, on the reasoning that one large page is
+cheaper than ten small ones — each request is billed the same regardless of size.
+
+The first live call returned `400 Bad Request`. Isolating the parameters gave a precise
+answer:
+
+| Request | Result |
+|---|---|
+| X-ray query alone | 200, 10 results |
+| `+ page=1` / `page=2` | 200 |
+| `+ num=10` | 200 |
+| `+ num=20` / `num=100` | **400 — "Query pattern not allowed for free accounts"** |
+
+Free accounts cap `num` at 10 *when the query uses search operators* — which every X-ray
+query does, by definition. `page` is unrestricted on every plan.
+
+Two further findings from the same session:
+
+- Omitting `num` entirely returned **10** results where `num=10` returned **7**. Letting the
+  API choose is not merely safer, it was better.
+- The original code called `raise_for_status()` before reading the body, discarding
+  `{"message": "Query pattern not allowed for free accounts."}` — the one part of the
+  response that said what to change. Diagnosis took a manual probe that the error message
+  should have made unnecessary.
+
+### Decision
+
+Do not send `num` unless explicitly configured. Paginate with `page`. Surface the API's own
+error message on every failure, and translate this specific one into advice naming the
+setting to change.
+
+### Consequences
+
+The default configuration now works on the free plan, which is what the README promises any
+reader can do. Paid users set `GP_RESULTS_PER_PAGE=100` and get the same results in fewer
+billed queries.
+
+The wider lesson is about testing: a mock transport proves the code handles the response
+shape you *imagined*. Only a real call proves the request is one the vendor will accept.
+Three defects surfaced on the first live run and none of them were reachable through
+`httpx.MockTransport` — this one, a Windows console that could not encode the Arabic
+right-to-left marks in genuine Dubai profile titles, and a cost estimate derived from
+attempted rather than billed queries, which charged for a fully cached run.

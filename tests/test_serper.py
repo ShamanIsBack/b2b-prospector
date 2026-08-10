@@ -108,6 +108,13 @@ class TestRequestShape:
             "hl": "en",
         }
 
+    async def test_num_is_omitted_by_default(self) -> None:
+        """Free Serper plans reject num > 10 on operator-heavy queries, and every
+        X-ray query is operator-heavy -- so by default we let the API choose."""
+        recorder = Recorder(ok(organic(1)))
+        await make_provider(recorder).search("q", AGENCY)
+        assert "num" not in recorder.bodies[0]
+
     async def test_page_size_is_capped_at_the_api_maximum(self) -> None:
         recorder = Recorder(ok(organic(1)))
         provider = make_provider(recorder, results_per_page=500)
@@ -204,9 +211,34 @@ class TestErrorHandling:
         recorder = Recorder(*[httpx.Response(400, json={"message": "bad query"})] * 5)
         provider = make_provider(recorder, max_retries=3, sleeper=clock.sleep)
 
-        with pytest.raises(httpx.HTTPStatusError):
+        with pytest.raises(ProviderError):
             await provider.search("q", AGENCY)
         assert len(recorder.requests) == 1
+
+    async def test_the_servers_own_explanation_is_surfaced(self, clock: FakeClock) -> None:
+        """A 400 body says what to change; discarding it would waste the reply."""
+        recorder = Recorder(httpx.Response(400, json={"message": "bad query"}))
+        provider = make_provider(recorder, sleeper=clock.sleep)
+
+        with pytest.raises(ProviderError, match="bad query"):
+            await provider.search("q", AGENCY)
+
+    async def test_free_account_rejection_explains_the_page_size(self, clock: FakeClock) -> None:
+        """Serper rejects num > 10 on free plans for operator-heavy queries."""
+        recorder = Recorder(
+            httpx.Response(400, json={"message": "Query pattern not allowed for free accounts."})
+        )
+        provider = make_provider(recorder, results_per_page=100, sleeper=clock.sleep)
+
+        with pytest.raises(ProviderError, match="GP_RESULTS_PER_PAGE"):
+            await provider.search("q", AGENCY)
+
+    async def test_non_json_error_body_still_produces_a_message(self, clock: FakeClock) -> None:
+        recorder = Recorder(httpx.Response(400, content=b"upstream exploded"))
+        provider = make_provider(recorder, sleeper=clock.sleep)
+
+        with pytest.raises(ProviderError, match="upstream exploded"):
+            await provider.search("q", AGENCY)
 
 
 class TestCaching:

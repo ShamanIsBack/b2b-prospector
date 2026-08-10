@@ -120,7 +120,7 @@ It is exported as a hint column only.
 | | **serper** (default) | **gemini** | **fixture** |
 |---|---|---|---|
 | Source | Google organic results as JSON | Grounding with Google Search | Recorded responses |
-| Pagination | ✅ `num` + `page` | ❌ none available | ✅ replayed pages |
+| Pagination | ✅ `page` (plus `num` on paid plans) | ❌ none available | ✅ replayed pages |
 | Snippets | ✅ | ❌ | ✅ |
 | Deterministic | ✅ | ❌ model rewrites the query | ✅ |
 | Latency | ~200–500 ms | ~2–4 s | instant |
@@ -161,7 +161,7 @@ into shell history, process listings and CI logs.
 | `GEMINI_API_KEY` | – | Gemini key, for `--provider gemini` |
 | `GP_MAX_QUERIES` | `50` | Hard ceiling; the run aborts rather than overspending |
 | `GP_MAX_PAGES` | `3` | Result pages per company |
-| `GP_RESULTS_PER_PAGE` | `100` | Serper page size (max 100) |
+| `GP_RESULTS_PER_PAGE` | *unset* | Serper page size. **Leave unset on a free plan** — see below |
 | `GP_CONCURRENCY` | `3` | Simultaneous in-flight searches |
 | `GP_RATE_LIMIT_PER_MINUTE` | `30` | Token-bucket pacing |
 | `GP_CACHE_TTL_HOURS` | `168` | Response cache lifetime |
@@ -169,6 +169,13 @@ into shell history, process listings and CI logs.
 
 Responses are cached in SQLite keyed by provider, page size, country, query and page
 number, so re-running a refined search costs nothing for the parts that did not change.
+
+> **Free Serper plans and `num`.** Serper rejects `num` above 10 when the query uses search
+> operators — which every X-ray query does — with
+> `400 Query pattern not allowed for free accounts`. So `num` is not sent by default and
+> Google picks the page size (~10 results). `page` is unaffected, so use `--pages` to fetch
+> more. On a paid plan, set `GP_RESULTS_PER_PAGE=100` to get the same results in fewer
+> billed queries.
 
 ## Compliance
 

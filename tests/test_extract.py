@@ -109,7 +109,7 @@ class TestIsPlausiblePersonName:
 
 class TestExtractLocationHint:
     def test_leading_segment_before_a_middot_is_the_location(self) -> None:
-        snippet = "Dubai, United Arab Emirates · MICE Manager · Acme · Ten years experience."
+        snippet = "Dubai, United Arab Emirates · MICE Manager · Acme · Ten years."
         assert extract_location_hint(snippet) == "Dubai, United Arab Emirates"
 
     def test_explicit_location_label_is_stripped(self) -> None:
@@ -125,6 +125,24 @@ class TestExtractLocationHint:
     )
     def test_counts_and_durations_are_not_locations(self, snippet: str) -> None:
         assert extract_location_hint(snippet) is None
+
+    @pytest.mark.parametrize(
+        "snippet",
+        [
+            "الخبرة: Falcon Bay Travel",  # Arabic "Experience:", seen live
+            "Erfahrung: Acme GmbH · Direktor",
+            "Ausbildung: Some University",
+        ],
+    )
+    def test_localised_field_labels_are_not_locations(self, snippet: str) -> None:
+        """Google localises snippet labels, so an English word list is not enough."""
+        assert extract_location_hint(snippet) is None
+
+    def test_bidi_control_marks_are_stripped(self) -> None:
+        """Real Gulf profile snippets carry invisible direction marks."""
+        rtl, ltr = chr(0x200F), chr(0x200E)
+        snippet = f"{rtl}Dubai, United Arab Emirates{ltr} · Director"
+        assert extract_location_hint(snippet) == "Dubai, United Arab Emirates"
 
     def test_prose_leading_segment_is_rejected(self) -> None:
         snippet = "Experienced events professional working across the Gulf region and Europe"
