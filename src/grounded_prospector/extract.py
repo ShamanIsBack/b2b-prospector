@@ -43,6 +43,9 @@ _AGENCY_STOPWORDS = frozenset({"the", "and", "of", "llc", "ltd", "fz", "fze", "d
 
 # Scoring weights. They sum to 1.0 so the score reads as a percentage.
 _WEIGHT_AGENCY_MATCH = 0.40
+# Partial credit: the company is named, but in free text that also holds past
+# roles. Enough to rank above a non-match, never enough to skip review.
+_WEIGHT_AGENCY_IN_SNIPPET = 0.20
 _WEIGHT_ROLE_MATCH = 0.25
 _WEIGHT_WELL_FORMED = 0.20
 _WEIGHT_PLAUSIBLE_NAME = 0.15
@@ -248,18 +251,32 @@ def score_prospect(
     person at the wrong company: a search for staff *at* an agency readily
     returns people whose profile merely mentions it.
 
-    The company is looked for in the title *and* the snippet, since a snippet
-    legitimately names the employer when the title truncates it. Location is
-    deliberately absent from the scoring — see :func:`extract_location_hint`.
+    Where the company name appears matters as much as whether it appears. A
+    LinkedIn result title states the person's *current* employer. A snippet is
+    free text that also contains past roles, so "worked at Acme 2015-2018"
+    matches it just as readily as someone who works there today. Measured on a
+    real 433-prospect run: 96 matches came from titles and 150 from snippets
+    alone, and the snippet-only group included a retired banker.
+
+    So a title match clears the row for outreach; a snippet-only match earns
+    partial credit but still asks for human eyes. Location is deliberately
+    absent from the scoring — see :func:`extract_location_hint`.
     """
     reasons: list[str] = []
     score = 0.0
 
-    haystack = _normalise(f"{raw_title} {snippet or ''}")
     tokens = _agency_tokens(agency)
-    agency_matched = bool(tokens) and all(tok in haystack for tok in tokens)
-    if agency_matched:
+    in_title = bool(tokens) and all(tok in _normalise(raw_title) for tok in tokens)
+    in_snippet = bool(tokens) and all(tok in _normalise(snippet or "") for tok in tokens)
+
+    if in_title:
         score += _WEIGHT_AGENCY_MATCH
+    elif in_snippet:
+        score += _WEIGHT_AGENCY_IN_SNIPPET
+        reasons.append(
+            f"company {agency!r} appears only in the result snippet, not the title -- "
+            f"this may be a former employer"
+        )
     else:
         reasons.append(f"target company {agency!r} not found in the result")
 
@@ -282,9 +299,10 @@ def score_prospect(
     # Guard against float drift so the value always renders cleanly as a percentage.
     score = round(min(score, 1.0), 4)
 
-    # A company mismatch is a gate, not a weight. Someone whose headline merely
-    # mentions the target is not a lower-confidence version of the right person,
-    # they are the wrong person -- so no combination of the other signals may
-    # clear them for outreach.
-    needs_review = score < CONFIDENCE_REVIEW_THRESHOLD or not agency_matched
+    # The company signal is a gate, not just a weight. Someone whose profile
+    # merely mentions the target is not a lower-confidence version of the right
+    # person, they are a different person -- so no combination of the other
+    # signals may clear them. Only a *title* match, which states the current
+    # employer, opens the gate.
+    needs_review = score < CONFIDENCE_REVIEW_THRESHOLD or not in_title
     return Confidence(score=score, needs_review=needs_review, reasons=reasons)

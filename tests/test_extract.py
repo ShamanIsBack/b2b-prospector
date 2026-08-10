@@ -224,17 +224,43 @@ class TestScoreProspect:
         assert result.needs_review
         assert len(result.reasons) == 4
 
-    def test_company_named_only_in_the_snippet_still_counts(self) -> None:
-        """Titles truncate; the snippet often carries the employer instead."""
+    def test_company_only_in_the_snippet_scores_but_still_needs_review(self) -> None:
+        """A snippet mention may be a former employer, so it cannot clear the gate.
+
+        Observed on a live 433-prospect run: a "Retired Banker" scored full marks
+        because the target company appeared somewhere in their snippet.
+        """
         result = score_prospect(
             raw_title="Jane Doe - MICE Manager | LinkedIn",
             name="Jane Doe",
             headline="MICE Manager",
             agency="Dune & Palm Events",
             roles=ROLES,
-            snippet="Dubai · MICE Manager · Dune & Palm Events · Corporate incentive programmes.",
+            snippet="Dubai · MICE Manager · Dune & Palm Events · Incentive programmes.",
         )
-        assert not result.needs_review
+        assert result.needs_review
+        assert any("former employer" in reason for reason in result.reasons)
+        # Still outranks a result that never mentions the company at all.
+        assert result.score == pytest.approx(0.80)
+
+    def test_a_title_match_outranks_a_snippet_match(self) -> None:
+        common = {
+            "name": "Jane Doe",
+            "headline": "MICE Manager",
+            "agency": "Dune & Palm Events",
+            "roles": ROLES,
+        }
+        titled = score_prospect(
+            raw_title="Jane Doe - MICE Manager - Dune & Palm Events | LinkedIn", **common
+        )
+        snipped = score_prospect(
+            raw_title="Jane Doe - MICE Manager | LinkedIn",
+            snippet="Previously at Dune & Palm Events",
+            **common,
+        )
+        assert titled.score > snipped.score
+        assert not titled.needs_review
+        assert snipped.needs_review
 
     def test_score_never_exceeds_one(self) -> None:
         result = score_prospect(

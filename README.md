@@ -105,15 +105,22 @@ This tool never does that. It is structural, not a matter of prompt wording:
 
 | Signal | Weight |
 |---|---|
-| Target company appears in the title or snippet | 0.40 |
+| Target company appears **in the result title** | 0.40 |
+| Target company appears **only in the snippet** | 0.20 |
 | A target role keyword appears in the headline or snippet | 0.25 |
 | Title split cleanly into both a name and a headline | 0.20 |
 | Parsed name looks like a person's name | 0.15 |
 
-Below `0.60`, or on any company mismatch, the row gets `Needs review = yes` plus a
-plain-English list of what was missing. **Location is deliberately absent from scoring** —
-matching on it is exactly how a search for people *in* Austin returns people *named* Austin.
-It is exported as a hint column only.
+Below `0.60`, or without a company match **in the title**, the row gets `Needs review = yes`
+plus a plain-English list of what was missing.
+
+The title/snippet split is not pedantry. A LinkedIn result title names the person's *current*
+employer; a snippet is free text that also contains past roles. On a real 433-prospect run,
+96 matches came from titles and 150 from snippets alone — and the snippet-only group included
+a profile headlined "Retired Banker". See ADR-004.
+
+**Location is deliberately absent from scoring** — matching on it is exactly how a search for
+people *in* Austin returns people *named* Austin. It is exported as a hint column only.
 
 ## Backends
 
@@ -230,15 +237,26 @@ number, so re-running a refined search costs nothing for the parts that did not 
 
 ## Limitations
 
-Stated plainly, because a prospecting tool that oversells itself wastes someone's week:
+Stated plainly, because a prospecting tool that oversells itself wastes someone's week.
+Numbers below are from a real 14-company, 433-prospect run.
 
-- **Recall is not exhaustive.** You get what the search index surfaces for your query, not
-  a company's org chart.
-- **Job titles go stale.** A search snippet reflects whenever the page was last indexed.
-- **Homonyms and name-collisions happen.** A search anchored on a place name returns people
-  named after that place. This is what the review gate exists for.
-- **Roughly 20% of rows need a human look** on real data. That is a feature of honest
-  scoring, not a defect — the flagged rows are the ones worth checking.
+- **Recall is not exhaustive.** You get what the search index surfaces, not an org chart.
+  Coverage is also wildly uneven between companies: that run returned 48 prospects for one
+  agency and 1 for another. A thin result usually means a small LinkedIn footprint, not a
+  failed search.
+- **About 22% of rows are ready to contact** (96 of 433); the rest carry a review reason.
+  That ratio is honest scoring, not a defect — and it inverts if you set `location`, which
+  trades recall for precision.
+- **Company-name matching accepts supersets.** "Al Noor Majlis Concierge, LLC" contains
+  every token of "Majlis Concierge", so its staff pass the gate for that target.
+- **Dropping `location` widens geography too.** Global brands then return staff from any
+  office — a real run surfaced Ivory Key Club USA and Silk Lantern Journeys India alongside the
+  Dubai teams. Use the `Location hint` column, or set `location` and accept lower recall.
+- **Job titles go stale.** A snippet reflects whenever the page was last indexed.
+- **The same person can hold two LinkedIn profiles.** Deduplication is by profile URL, which
+  cannot merge genuinely distinct URLs; six such pairs appeared in that run.
+- **Company names must be right.** `FalconBayTravel` returned nothing under any query shape;
+  `Falcon Bay Travel` returned a full page. Check a thin result before blaming the index.
 
 ## Development
 

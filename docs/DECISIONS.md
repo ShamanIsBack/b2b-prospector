@@ -144,6 +144,32 @@ More rows are flagged, including some correct ones whose title truncated the emp
 is the right direction to err: a flagged correct row costs a glance, an unflagged wrong row
 costs a misdirected email to a real person.
 
+### Amendment (2026-08-10) — *where* the company name appears is the gate
+
+The first full production run, 433 prospects across 14 agencies, showed the gate was weaker
+than it looked. Company matching searched the title **and** the snippet, and of the 246 rows
+that passed, only **96 matched in the title**; **150 matched on the snippet alone**.
+
+A snippet is free text containing employment *history*. Among the rows it cleared for
+outreach was a profile headlined "Retired Banker", and an "Operations Manager at Charity
+Challenge" — both counted as current staff of the target agency because the agency appeared
+somewhere in their snippet text.
+
+A result *title* states the current employer. A snippet does not. So the gate now requires a
+title match; a snippet-only match earns partial credit (0.20 rather than 0.40) so it still
+outranks a non-match, and carries the reason "appears only in the result snippet, not the
+title -- this may be a former employer". Ready-to-contact rows fell from 246 to 96, which is
+the fabrication in the earlier number made visible.
+
+Re-scoring the whole run against the response cache cost **zero queries and 0.1 seconds** —
+the cache stores raw API responses, so scoring is free to iterate on after the data is
+collected.
+
+**Known limitation this does not solve:** token-subset matching still accepts a *superset*
+company name. "Al Noor Majlis Concierge, LLC" contains every token of "Majlis Concierge",
+so a retired banker there passes the title gate. Tightening it would need the target's legal
+name, which the brief does not have. Documented rather than guessed at.
+
 ---
 
 ## ADR-005 — A provider abstraction, with more than one real implementation
