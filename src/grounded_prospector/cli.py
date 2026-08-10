@@ -17,12 +17,12 @@ from grounded_prospector.config import (
     SERPER_USD_PER_1K_QUERIES,
     Settings,
 )
-from grounded_prospector.demo import DEMO_AGENCIES
+from grounded_prospector.demo import DEMO_BRIEF
 from grounded_prospector.export import write_csv, write_json, write_report
 from grounded_prospector.infra.cache import Cache, NullCache, SqliteCache
 from grounded_prospector.infra.logging import setup_logging
 from grounded_prospector.infra.ratelimit import TokenBucket
-from grounded_prospector.models import Prospect, RunReport, TargetList
+from grounded_prospector.models import Prospect, RunReport, SearchBrief
 from grounded_prospector.pipeline import (
     PipelineOptions,
     plan_queries,
@@ -32,7 +32,7 @@ from grounded_prospector.providers.base import ProviderError, SearchProvider
 from grounded_prospector.providers.fixture import FixtureProvider
 from grounded_prospector.providers.gemini import GeminiGroundingProvider
 from grounded_prospector.providers.serper import SerperProvider
-from grounded_prospector.targets import TargetListError, load_targets
+from grounded_prospector.targets import DEFAULT_BRIEF_PATH, SearchBriefError, load_brief
 
 app = typer.Typer(
     add_completion=False,
@@ -44,8 +44,13 @@ console = Console()
 PROVIDERS = ("serper", "gemini", "fixture")
 
 
-def _build_provider(name: str, settings: Settings, cache: Cache) -> SearchProvider:
+def _build_provider(
+    name: str, settings: Settings, cache: Cache, brief: SearchBrief
+) -> SearchProvider:
     """Construct the requested backend.
+
+    Country and language come from the brief, not the environment: they describe
+    what you are searching for, not how the tool is deployed.
 
     Raises:
         typer.BadParameter: if the provider name is not recognised.
@@ -60,8 +65,8 @@ def _build_provider(name: str, settings: Settings, cache: Cache) -> SearchProvid
             cache=cache,
             bucket=bucket,
             results_per_page=settings.results_per_page,
-            country=settings.country,
-            language=settings.language,
+            country=brief.country,
+            language=brief.language,
             max_retries=settings.max_retries,
             timeout_seconds=settings.request_timeout_seconds,
         )
@@ -155,22 +160,22 @@ def _preview_table(prospects: list[Prospect], limit: int = 10) -> Table:
     return table
 
 
-def _load(agencies: Path | None, demo: bool) -> TargetList:
-    """Resolve and load the target list.
+def _load(search: Path | None, demo: bool) -> SearchBrief:
+    """Resolve and load the search brief.
 
     Raises:
-        typer.BadParameter: if the list cannot be read or validated.
+        typer.BadParameter: if the brief cannot be read or validated.
     """
-    path = DEMO_AGENCIES if demo and agencies is None else (agencies or Path("agencies.yaml"))
+    path = DEMO_BRIEF if demo and search is None else (search or DEFAULT_BRIEF_PATH)
     try:
-        return load_targets(path)
-    except TargetListError as error:
-        # A fresh clone has no agencies.yaml, and this is the first thing such a
+        return load_brief(path)
+    except SearchBriefError as error:
+        # A fresh clone has no search.yaml, and this is the first thing such a
         # user hits -- so point at the two ways forward rather than just failing.
         hint = (
-            "\n\nEither copy agencies.example.yaml to agencies.yaml and edit it, "
+            "\n\nEither copy search.example.yaml to search.yaml and edit it, "
             "or run with --demo to try the tool against bundled offline data."
-            if agencies is None and not demo
+            if search is None and not demo
             else ""
         )
         raise typer.BadParameter(f"{error}{hint}") from error
@@ -178,9 +183,9 @@ def _load(agencies: Path | None, demo: bool) -> TargetList:
 
 @app.command()
 def run(
-    agencies: Annotated[
+    search: Annotated[
         Path | None,
-        typer.Option("--agencies", "-a", help="Target list YAML. Defaults to ./agencies.yaml."),
+        typer.Option("--search", "-s", help="Search brief YAML. Defaults to ./search.yaml."),
     ] = None,
     out: Annotated[Path, typer.Option("--out", "-o", help="Where to write the CSV.")] = Path(
         "out/prospects.csv"
@@ -205,8 +210,9 @@ def run(
         int | None, typer.Option("--max-queries", help="Hard ceiling on queries for this run.")
     ] = None,
     min_confidence: Annotated[
-        float, typer.Option("--min-confidence", help="Drop prospects scoring below this.")
-    ] = 0.0,
+        float | None,
+        typer.Option("--min-confidence", help="Drop prospects scoring below this."),
+    ] = None,
     no_cache: Annotated[
         bool, typer.Option("--no-cache", help="Ignore and do not write the response cache.")
     ] = False,
@@ -219,18 +225,21 @@ def run(
     if demo:
         provider = "fixture"
 
-    targets = _load(agencies, demo)
+    brief = _load(search, demo)
     if limit is not None:
-        targets = targets.model_copy(update={"agencies": targets.agencies[:limit]})
+        brief = brief.model_copy(update={"agencies": brief.agencies[:limit]})
 
+    # Precedence throughout: an explicit CLI flag beats the brief, which beats
+    # the built-in default. A `None` here means the flag was not given at all.
     options = PipelineOptions(
-        max_pages=pages if pages is not None else settings.max_pages,
+        max_pages=pages if pages is not None else brief.max_pages,
         max_queries=max_queries if max_queries is not None else settings.max_queries,
         concurrency=settings.concurrency,
     )
+    threshold = min_confidence if min_confidence is not None else brief.min_confidence
 
     if dry_run:
-        _show_plan(targets, provider, options)
+        _show_plan(brief, provider, options)
         return
 
     cache: Cache = (
@@ -243,20 +252,20 @@ def run(
     )
 
     try:
-        backend = _build_provider(provider, settings, cache)
+        backend = _build_provider(provider, settings, cache, brief)
     except RuntimeError as error:
         console.print(f"[red]{error}[/red]")
         raise typer.Exit(code=2) from error
 
-    prospects, report = asyncio.run(_execute(targets, backend, options, log))
+    prospects, report = asyncio.run(_execute(brief, backend, options, log))
 
     report.cache_hits = cache.hits
     report.cache_misses = cache.misses
     report.model = settings.gemini_model if provider == "gemini" else None
     report.estimated_cost_usd = _estimate_cost(report)
 
-    if min_confidence > 0:
-        prospects = [p for p in prospects if p.confidence >= min_confidence]
+    if threshold > 0:
+        prospects = [p for p in prospects if p.confidence >= threshold]
         report.prospects = len(prospects)
 
     csv_path = write_csv(prospects, out)
@@ -272,14 +281,14 @@ def run(
 
 
 async def _execute(
-    targets: TargetList,
+    brief: SearchBrief,
     backend: SearchProvider,
     options: PipelineOptions,
     log: logging.Logger,
 ) -> tuple[list[Prospect], RunReport]:
     """Run the pipeline and always close the backend afterwards."""
     try:
-        return await run_pipeline(targets, backend, options)
+        return await run_pipeline(brief, backend, options)
     except ProviderError as error:
         log.exception("search failed")
         raise typer.Exit(code=1) from error
@@ -287,9 +296,9 @@ async def _execute(
         await backend.aclose()
 
 
-def _show_plan(targets: TargetList, provider: str, options: PipelineOptions) -> None:
+def _show_plan(brief: SearchBrief, provider: str, options: PipelineOptions) -> None:
     """Print what a run would do, without doing it."""
-    plan = plan_queries(targets)
+    plan = plan_queries(brief)
     worst_case = min(len(plan) * options.max_pages, options.max_queries)
 
     table = Table(title="Planned queries", title_style="bold")

@@ -1,6 +1,8 @@
-# Target list used by `grounded-prospector run --demo`.
+# Search brief used by `grounded-prospector run --demo`.
 # These agencies are fictional; see demo/__init__.py.
 location: Dubai
+country: ae
+language: en
 roles:
   - MICE
   - Incentive
@@ -9,6 +11,9 @@ roles:
   - Outbound
   - Director
   - Head of
+keywords: []
+max_pages: 3
+min_confidence: 0.0
 agencies:
   - name: Dune & Palm Events
     segment: mice

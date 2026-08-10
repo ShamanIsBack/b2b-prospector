@@ -3,7 +3,8 @@
 .env
 
 # --- Local config ----------------------------------------------------------
-# Your own target list. agencies.example.yaml is the tracked template.
+# Your own search brief. search.example.yaml is the tracked template.
+search.yaml
 agencies.yaml
 
 # --- Output ---------------------------------------------------------------

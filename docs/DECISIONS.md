@@ -267,3 +267,55 @@ Three defects surfaced on the first live run and none of them were reachable thr
 `httpx.MockTransport` — this one, a Windows console that could not encode the Arabic
 right-to-left marks in genuine Dubai profile titles, and a cost estimate derived from
 attempted rather than billed queries, which charged for a fully cached run.
+
+---
+
+## ADR-008 — The search subject is configuration; the environment is infrastructure
+
+**Status:** accepted · **Date:** 2026-08-10
+
+### Context
+
+Retargeting the tool — a different country, sector or seniority — meant touching three
+places, and one setting could not be reached at all:
+
+| Setting | Where it lived | Why that was wrong |
+|---|---|---|
+| `location`, `roles`, `agencies` | `agencies.yaml` | fine |
+| `country`, `language` | `GP_COUNTRY`, `GP_LANGUAGE` | These decide *which* results a search engine returns. A Warsaw search silently kept `gl=ae` unless you knew to look in `.env`. |
+| `max_pages` | `GP_MAX_PAGES` | Search depth, split from the rest of the brief |
+| `min_confidence` | CLI flag only | Could not be saved with a campaign at all |
+| `keywords` | nowhere | `build_xray_query()` accepted the parameter, the model had no field, and the pipeline never passed it. A passing unit test covered it — which is precisely how dead code survives review. |
+
+### Decision
+
+One rule decides where a setting goes:
+
+- **`search.yaml`** — anything describing *what* you are looking for or *how hard*: location,
+  country, language, roles, keywords, agencies, `max_pages`, `min_confidence`.
+- **`.env`** — secrets and infrastructure: API keys, provider, model, cache, concurrency,
+  rate limit, timeouts, and the `max_queries` spend ceiling (an account-level guard, not a
+  property of any one search).
+- **CLI** — one-off overrides. Precedence is **flag > brief > built-in default**.
+
+`country` and `language` were *deleted* from `Settings` rather than kept as a fallback
+override. A second place to set them is the exact problem being solved, and a silent
+precedence chain between a file and an environment variable is worse than either alone.
+`results_per_page` stayed in the environment because it is a property of your Serper *plan*.
+
+The file was renamed `agencies.yaml` → `search.yaml`, since a file called "agencies" that
+also sets country and search depth misleads anyone reading the repo cold. A missing
+`search.yaml` next to an existing `agencies.yaml` produces migration instructions rather than
+a bare "not found".
+
+### Consequences
+
+A campaign is now one copyable, diffable file, and `--dry-run` shows the full effect of an
+edit before spending anything. Wiring `keywords` through was a two-line change once the field
+existed — the work was never the plumbing, it was noticing that a green test suite was
+guarding a code path no user could reach.
+
+LinkedIn deliberately stays hardcoded. The `site:` filter, the URL canonicaliser and the
+title parser are coupled on purpose (ADR-003): deterministic extraction only works because it
+knows one source's exact title format. Exposing the site filter alone would let someone write
+a valid-looking brief that silently produces garbage.

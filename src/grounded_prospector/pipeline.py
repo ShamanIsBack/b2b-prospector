@@ -1,4 +1,4 @@
-"""Orchestration: target list in, scored prospects and a run report out.
+"""Orchestration: a search brief in, scored prospects and a run report out.
 
 Two responsibilities live here and nowhere else:
 
@@ -24,7 +24,7 @@ from grounded_prospector.extract import (
     score_prospect,
     split_name,
 )
-from grounded_prospector.models import Agency, Prospect, RunReport, SearchHit, TargetList
+from grounded_prospector.models import Agency, Prospect, RunReport, SearchBrief, SearchHit
 from grounded_prospector.providers.base import ProviderError, SearchProvider
 from grounded_prospector.query import build_xray_query
 from grounded_prospector.urls import canonicalise_profile_url, dedupe_key
@@ -97,7 +97,7 @@ async def _collect_agency(
     return hits, billed
 
 
-def hits_to_prospects(hits: Sequence[SearchHit], targets: TargetList) -> list[Prospect]:
+def hits_to_prospects(hits: Sequence[SearchHit], brief: SearchBrief) -> list[Prospect]:
     """Turn raw search hits into scored, deduplicated prospects.
 
     Non-profile URLs are dropped here rather than at the provider, so the run
@@ -107,7 +107,7 @@ def hits_to_prospects(hits: Sequence[SearchHit], targets: TargetList) -> list[Pr
     a later page, or from a different agency's query -- the highest-scoring
     record wins, since that is the one with the most corroborating evidence.
     """
-    by_name = {agency.name: agency for agency in targets.agencies}
+    by_name = {agency.name: agency for agency in brief.agencies}
     best: dict[str, Prospect] = {}
 
     for hit in hits:
@@ -123,7 +123,7 @@ def hits_to_prospects(hits: Sequence[SearchHit], targets: TargetList) -> list[Pr
             name=parsed.name,
             headline=parsed.headline,
             agency=hit.agency,
-            roles=targets.roles,
+            roles=brief.roles,
             snippet=hit.snippet,
         )
 
@@ -155,27 +155,30 @@ def hits_to_prospects(hits: Sequence[SearchHit], targets: TargetList) -> list[Pr
     return sorted(best.values(), key=lambda p: (-p.confidence, p.agency, p.profile_url))
 
 
-def plan_queries(targets: TargetList) -> list[tuple[Agency, str]]:
+def plan_queries(brief: SearchBrief) -> list[tuple[Agency, str]]:
     """Build the query for every agency, without issuing anything."""
     return [
-        (agency, build_xray_query(agency.name, targets.location, targets.roles))
-        for agency in targets.agencies
+        (
+            agency,
+            build_xray_query(agency.name, brief.location, brief.roles, brief.keywords),
+        )
+        for agency in brief.agencies
     ]
 
 
 async def run_pipeline(
-    targets: TargetList,
+    brief: SearchBrief,
     provider: SearchProvider,
     options: PipelineOptions | None = None,
 ) -> tuple[list[Prospect], RunReport]:
-    """Search for every agency in ``targets`` and return scored prospects.
+    """Search for every agency in ``brief`` and return scored prospects.
 
     Returns:
         The deduplicated prospects, and a report of what the run cost and found.
     """
     options = options or PipelineOptions()
     started_at = datetime.now(UTC)
-    plan = plan_queries(targets)
+    plan = plan_queries(brief)
     budget = QueryBudget(limit=options.max_queries)
     errors: list[str] = []
     semaphore = asyncio.Semaphore(options.concurrency)
@@ -188,7 +191,7 @@ async def run_pipeline(
 
     all_hits = [hit for hits, _ in collected for hit in hits]
     billed = sum(count for _, count in collected)
-    prospects = hits_to_prospects(all_hits, targets)
+    prospects = hits_to_prospects(all_hits, brief)
 
     report = RunReport(
         provider=provider.name,

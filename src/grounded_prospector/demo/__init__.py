@@ -13,7 +13,7 @@ is used locally to verify the two agree.
 from pathlib import Path
 
 DEMO_DIR = Path(__file__).parent
-DEMO_AGENCIES = DEMO_DIR / "agencies.yaml"
+DEMO_BRIEF = DEMO_DIR / "search.yaml"
 
 # Serper is the default backend, so --demo replays Serper-shaped responses.
 DEMO_SERPER_RESPONSES = DEMO_DIR / "serper_responses.json"

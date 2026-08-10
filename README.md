@@ -47,7 +47,7 @@ project has failed.
 
 ```bash
 cp .env.example .env          # paste a key from https://serper.dev (2,500 free, no card)
-cp agencies.example.yaml agencies.yaml
+cp search.example.yaml search.yaml
 
 grounded-prospector run --dry-run     # see every query and the cost, send nothing
 grounded-prospector run               # write out/prospects.csv
@@ -57,7 +57,7 @@ grounded-prospector run               # write out/prospects.csv
 
 ```mermaid
 flowchart LR
-    A[agencies.yaml] --> B[X-ray query builder]
+    A[search.yaml] --> B[X-ray query builder]
     B --> C{SearchProvider}
     C -->|serper| D[Serper.dev<br/>Google organic JSON]
     C -->|gemini| E[Gemini grounding<br/>cited sources only]
@@ -152,20 +152,58 @@ details. Filling them with guesses would invite someone to email an unverified a
 
 ## Configuration
 
-Keys are read from the environment or `.env` and are **never** CLI options — arguments leak
-into shell history, process listings and CI logs.
+Two files, split by one rule: **`search.yaml` is what you look for, `.env` is how the tool
+runs.** Retargeting never means hunting through environment variables.
+
+### `search.yaml` — the search brief
+
+Everything defining a search lives here, so a whole campaign is one file you can copy, diff
+and keep alongside others.
+
+| Field | Default | Purpose |
+|---|---|---|
+| `location` | *required* | Geographic anchor, quoted into every query |
+| `country` / `language` | `ae` / `en` | Serper `gl` / `hl` — biases which results come back |
+| `roles` | `[]` | Seniority/function keywords, OR-ed into one group |
+| `keywords` | `[]` | Optional second OR-group, AND-ed with `roles` |
+| `agencies` | *required* | Companies to search, each with an optional free-text `segment` |
+| `max_pages` | `3` | Result pages per company |
+| `min_confidence` | `0.0` | Drop rows scoring below this before writing the CSV |
+
+**Retargeting is a single-file edit.** Dubai travel → Warsaw fintech:
+
+```yaml
+location: Warsaw
+country: pl                        # was ae — otherwise results stay Emirati
+language: pl
+roles: [CTO, Head of Engineering, VP Engineering]
+keywords: [fintech, payments]      # narrows without diluting the role list
+agencies:
+  - name: Booksy
+    segment: saas
+```
+
+```bash
+grounded-prospector run --search warsaw.yaml --dry-run   # check the queries, spend nothing
+```
+
+`--pages` and `--min-confidence` override the brief for a single run; the brief overrides the
+built-in defaults. Nothing about the search subject lives in `.env`.
+
+### `.env` — credentials and infrastructure
+
+Keys are read from the environment and are **never** CLI options — arguments leak into shell
+history, process listings and CI logs.
 
 | Variable | Default | Purpose |
 |---|---|---|
 | `SERPER_API_KEY` | – | Serper.dev key |
 | `GEMINI_API_KEY` | – | Gemini key, for `--provider gemini` |
-| `GP_MAX_QUERIES` | `50` | Hard ceiling; the run aborts rather than overspending |
-| `GP_MAX_PAGES` | `3` | Result pages per company |
+| `GP_MAX_QUERIES` | `50` | Hard ceiling per run; an account-level guard, not part of a search |
 | `GP_RESULTS_PER_PAGE` | *unset* | Serper page size. **Leave unset on a free plan** — see below |
 | `GP_CONCURRENCY` | `3` | Simultaneous in-flight searches |
 | `GP_RATE_LIMIT_PER_MINUTE` | `30` | Token-bucket pacing |
 | `GP_CACHE_TTL_HOURS` | `168` | Response cache lifetime |
-| `GP_COUNTRY` / `GP_LANGUAGE` | `ae` / `en` | Serper `gl` / `hl` |
 
 Responses are cached in SQLite keyed by provider, page size, country, query and page
 number, so re-running a refined search costs nothing for the parts that did not change.

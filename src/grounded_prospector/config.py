@@ -41,17 +41,17 @@ class Settings(BaseSettings):
 
     # A runaway loop against a metered API is the expensive failure mode, so the
     # ceiling is configuration rather than something a caller can forget to pass.
+    # This is an account-level guard, not a property of any one search, which is
+    # why it stays here rather than moving into search.yaml.
     max_queries: int = Field(default=50, ge=1)
-    max_pages: int = Field(default=3, ge=1)
+
     # Left unset by default: Serper rejects num > 10 on free accounts when the
     # query uses search operators, which every X-ray query does. Paid plans may
-    # set this up to 100. See providers/serper.py.
+    # set this up to 100. A property of your plan, not of the search.
     results_per_page: int | None = Field(default=None, ge=1, le=100)
+
     concurrency: int = Field(default=3, ge=1, le=10)
     rate_limit_per_minute: int = Field(default=30, ge=1)
-
-    country: str = Field(default="ae")
-    language: str = Field(default="en")
 
     cache_dir: Path = Field(default=Path(".cache"))
     cache_ttl_hours: int = Field(default=168, ge=0)

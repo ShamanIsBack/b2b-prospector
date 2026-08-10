@@ -14,7 +14,10 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-from grounded_prospector.cli import app
+from grounded_prospector.cli import _build_provider, app
+from grounded_prospector.config import Settings
+from grounded_prospector.infra.cache import NullCache
+from grounded_prospector.targets import load_brief
 
 runner = CliRunner()
 
@@ -104,7 +107,7 @@ class TestDryRun:
 
 class TestMissingCredentials:
     def test_serper_without_a_key_explains_how_to_get_one(self, tmp_path: Path) -> None:
-        (tmp_path / "agencies.yaml").write_text(
+        (tmp_path / "search.yaml").write_text(
             "location: Dubai\nroles: [MICE]\nagencies:\n  - name: Acme\n", encoding="utf-8"
         )
         result = runner.invoke(app, ["run", "--provider", "serper"])
@@ -118,11 +121,82 @@ class TestMissingCredentials:
         assert result.exit_code == 0
 
     def test_unknown_provider_is_rejected(self, tmp_path: Path) -> None:
-        (tmp_path / "agencies.yaml").write_text(
+        (tmp_path / "search.yaml").write_text(
             "location: Dubai\nroles: [MICE]\nagencies:\n  - name: Acme\n", encoding="utf-8"
         )
         result = runner.invoke(app, ["run", "--provider", "nope"])
         assert result.exit_code != 0
+
+
+class TestSearchBriefDrivesEverything:
+    """One file must be enough to retarget the tool."""
+
+    BRIEF = """
+location: Warsaw
+country: pl
+language: pl
+roles: [CTO, Head of Engineering]
+keywords: [fintech, payments]
+max_pages: 2
+min_confidence: 0.9
+agencies:
+  - name: Booksy
+    segment: saas
+"""
+
+    def write_brief(self, tmp_path: Path, content: str | None = None) -> Path:
+        path = tmp_path / "warsaw.yaml"
+        path.write_text(content or self.BRIEF, encoding="utf-8")
+        return path
+
+    def test_a_brief_alone_is_enough_to_run(self, tmp_path: Path) -> None:
+        """No env vars, no flags beyond the file itself."""
+        brief = self.write_brief(tmp_path)
+        result = runner.invoke(
+            app, ["run", "--search", str(brief), "--provider", "fixture", "--dry-run"]
+        )
+        assert result.exit_code == 0, result.output
+
+    def test_max_pages_from_the_brief_drives_the_plan(self, tmp_path: Path) -> None:
+        brief = self.write_brief(tmp_path)
+        result = runner.invoke(
+            app, ["run", "--search", str(brief), "--provider", "fixture", "--dry-run"]
+        )
+        assert "up to 2 pages" in " ".join(result.output.split())
+
+    def test_cli_pages_flag_overrides_the_brief(self, tmp_path: Path) -> None:
+        brief = self.write_brief(tmp_path)
+        result = runner.invoke(
+            app,
+            ["run", "--search", str(brief), "--provider", "fixture", "--dry-run", "--pages", "1"],
+        )
+        assert "up to 1 pages" in " ".join(result.output.split())
+
+    def test_min_confidence_from_the_brief_filters_output(self, tmp_path: Path) -> None:
+        """A strict brief should drop the weak demo rows without any CLI flag."""
+        content = self.BRIEF.replace("Booksy", "Majlis Concierge").replace(
+            "location: Warsaw", "location: Dubai"
+        )
+        brief = self.write_brief(tmp_path, content)
+        out = tmp_path / "p.csv"
+        runner.invoke(
+            app, ["run", "--search", str(brief), "--provider", "fixture", "--out", str(out)]
+        )
+
+        with out.open(encoding="utf-8-sig", newline="") as handle:
+            rows = list(csv.DictReader(handle))
+        assert all(float(row["Confidence"]) >= 0.9 for row in rows)
+
+    def test_country_and_language_come_from_the_brief(self, tmp_path: Path) -> None:
+        """They used to be env vars; a Warsaw search must not silently stay on gl=ae."""
+        brief = load_brief(self.write_brief(tmp_path))
+        provider = _build_provider("serper", Settings(SERPER_API_KEY="k"), NullCache(), brief)
+
+        # Reaches past the public surface deliberately: the request body is the
+        # actual contract, and asserting on it is what proves the wiring.
+        body = provider._body("q", 1)
+        assert body["gl"] == "pl"
+        assert body["hl"] == "pl"
 
 
 class TestOtherCommands:
@@ -141,7 +215,7 @@ class TestOtherCommands:
         result = runner.invoke(app, [])
         assert "Usage" in result.output
 
-    def test_a_missing_target_list_points_at_the_way_forward(self) -> None:
+    def test_a_missing_search_brief_points_at_the_way_forward(self) -> None:
         """A fresh clone hits this first, so it must not be a dead end."""
         result = runner.invoke(app, ["run", "--provider", "fixture"])
         assert result.exit_code != 0

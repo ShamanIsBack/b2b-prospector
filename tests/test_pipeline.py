@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 
 import pytest
 
-from grounded_prospector.models import Agency, SearchHit, TargetList
+from grounded_prospector.models import Agency, SearchBrief, SearchHit
 from grounded_prospector.pipeline import (
     PipelineOptions,
     QueryBudget,
@@ -19,7 +19,7 @@ from grounded_prospector.providers.fixture import FixtureProvider
 
 NOW = datetime(2026, 8, 10, tzinfo=UTC)
 
-TARGETS = TargetList(
+TARGETS = SearchBrief(
     location="Dubai",
     roles=["MICE", "Director"],
     agencies=[Agency(name="Acme Events", segment="mice"), Agency(name="Beta Travel")],
@@ -96,6 +96,34 @@ class TestPlanQueries:
         _, query = plan_queries(TARGETS)[0]
         assert '"Acme Events"' in query
         assert '"Dubai"' in query
+
+    def test_roles_from_the_brief_reach_the_query(self) -> None:
+        _, query = plan_queries(TARGETS)[0]
+        assert '("MICE" OR "Director")' in query
+
+    def test_keywords_from_the_brief_reach_the_query(self) -> None:
+        """The wiring that was missing: the parameter existed but was never passed."""
+        brief = TARGETS.model_copy(update={"keywords": ["luxury", "eco"]})
+        _, query = plan_queries(brief)[0]
+        assert '("luxury" OR "eco")' in query
+
+    def test_no_empty_group_when_keywords_are_omitted(self) -> None:
+        assert "()" not in plan_queries(TARGETS)[0][1]
+
+    def test_a_retargeted_brief_produces_a_wholly_different_query(self) -> None:
+        """Changing country, sector and seniority is a single-file edit."""
+        warsaw = SearchBrief(
+            location="Warsaw",
+            country="pl",
+            roles=["CTO"],
+            keywords=["fintech"],
+            agencies=[Agency(name="Booksy")],
+        )
+        _, query = plan_queries(warsaw)[0]
+        assert '"Warsaw"' in query
+        assert '("CTO")' in query
+        assert '("fintech")' in query
+        assert "Dubai" not in query
 
 
 class TestHitsToProspects:
@@ -262,7 +290,7 @@ class TestRunPipeline:
 
     async def test_demo_fixtures_produce_a_realistic_run(self) -> None:
         """The bundled demo must exercise dedupe, filtering and the review gate."""
-        targets = TargetList(
+        targets = SearchBrief(
             location="Dubai",
             roles=["MICE", "Incentive", "Events", "Concierge", "Outbound", "Director"],
             agencies=[

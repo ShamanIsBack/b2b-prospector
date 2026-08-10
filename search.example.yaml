@@ -1,0 +1,95 @@
+# A search brief: everything that defines one search, in one file.
+#
+# Copy to search.yaml (or pass any path with --search) and edit. To retarget the
+# tool at a different country, sector or seniority, this is the only file you
+# need to touch -- .env holds API keys and infrastructure, nothing about *what*
+# you are looking for.
+#
+# The example below is the real target list from the project this tool was built
+# for: a small hospitality operator looking for B2B partners in one overseas market
+# Every company named below is invented.
+
+# ---------------------------------------------------------------------------
+# What to search for
+# ---------------------------------------------------------------------------
+
+# Geographic anchor added to every query, as a quoted phrase.
+location: Dubai
+
+# Country and language bias for the search engine itself (Serper `gl` / `hl`).
+# Set these deliberately: a Warsaw search left on `ae` will quietly favour
+# Emirati results. Use an ISO country code, e.g. pl, de, gb, us.
+country: ae
+language: en
+
+# Seniority and function keywords. These are OR-ed together inside ONE query,
+# so adding more widens recall per query without costing extra quota.
+roles:
+  - MICE
+  - Incentive
+  - Events
+  - Concierge
+  - Bespoke
+  - Outbound
+  - Director
+  - Head of
+
+# Optional second OR-group, AND-ed with the roles above. Use it to narrow by
+# specialism without diluting the role list, e.g. ["luxury", "eco-tourism"].
+# Leave empty to skip it entirely.
+keywords: []
+
+# ---------------------------------------------------------------------------
+# How deep, and how strict
+# ---------------------------------------------------------------------------
+
+# Result pages to fetch per company. Each page is one billed query, so the
+# worst case for a run is (agencies x max_pages). Pagination stops early on an
+# empty or short page. Override for one run with --pages.
+max_pages: 3
+
+# Drop prospects scoring below this before writing the CSV. 0.0 keeps
+# everything and relies on the "Needs review" column instead, which is usually
+# what you want on a first pass. Override for one run with --min-confidence.
+min_confidence: 0.0
+
+# ---------------------------------------------------------------------------
+# Who to search for
+# ---------------------------------------------------------------------------
+# `name` is used as a quoted phrase in the query and matched against result
+# titles and snippets. `segment` is a free-text label copied to the CSV.
+
+agencies:
+  # --- Boutique & bespoke travel ---
+  - name: Falcon Bay Travel
+    segment: boutique
+  - name: FalconBayTravel
+    segment: boutique
+  - name: Oryx & Compass Travel
+    segment: boutique
+  - name: Silk Lantern Journeys
+    segment: boutique
+
+  # --- MICE & incentive ---
+  - name: Lantern Court Incentives
+    segment: mice
+  - name: Dune & Palm Events
+    segment: mice
+  - name: Majlis Concierge
+    segment: mice
+  - name: Sandstone Meetings Group
+    segment: mice
+  - name: GulfCo Events
+    segment: mice
+  - name: Zephyr Incentive Works
+    segment: mice
+
+  # --- Luxury concierge ---
+  - name: Ivory Key Club
+    segment: concierge
+  - name: Ivory Key Club
+    segment: concierge
+  - name: Verdigris Concierge
+    segment: concierge
+  - name: Palm Atrium Concierge
+    segment: concierge

@@ -27,12 +27,30 @@ class Agency(BaseModel):
     domain: str | None = None
 
 
-class TargetList(BaseModel):
-    """A complete prospecting brief, loaded from ``agencies.yaml``."""
+class SearchBrief(BaseModel):
+    """Everything that defines one search, loaded from ``search.yaml``.
 
+    This is the single place a search is retargeted from. Anything describing
+    *what* to look for or *how hard* to look belongs here; API keys and
+    infrastructure live in the environment (see :mod:`grounded_prospector.config`).
+
+    The ``country``/``language`` defaults are inherited from the project's
+    original Dubai use case. They bias which results the search engine returns,
+    so set them deliberately -- a Polish search left on ``ae`` will quietly
+    return the wrong thing.
+    """
+
+    # --- what to search for ---
     location: str
-    roles: list[str]
+    country: str = "ae"
+    language: str = "en"
+    roles: list[str] = Field(default_factory=list)
+    keywords: list[str] = Field(default_factory=list)
     agencies: list[Agency]
+
+    # --- how deep, and how strict ---
+    max_pages: int = Field(default=3, ge=1)
+    min_confidence: float = Field(default=0.0, ge=0.0, le=1.0)
 
 
 class SearchHit(BaseModel):
