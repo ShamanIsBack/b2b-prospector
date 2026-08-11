@@ -5,12 +5,12 @@ build-backend = "hatchling.build"
 [project]
 name = "grounded-prospector"
 version = "0.1.0"
-description = "Find B2B decision-makers via Google Search grounding, without scraping and without inventing people."
+description = "Find B2B decision-makers from public search results, without scraping."
 readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.11"
-authors = [{ name = "Wojtek" }]
-keywords = ["b2b", "prospecting", "gemini", "grounding", "lead-generation", "osint"]
+authors = [{ name = "Wiktor" }]
+keywords = ["b2b", "prospecting", "serper", "gemini", "grounding", "lead-generation", "osint"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Environment :: Console",
