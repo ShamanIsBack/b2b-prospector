@@ -5,8 +5,9 @@ target name, or just want the CSV again. Against a metered API each of those
 re-runs would otherwise cost real quota, so identical queries are served from
 SQLite until their entry expires.
 
-The cache key covers provider, model and query together, so switching model or
-provider correctly misses rather than returning another backend's answer.
+The cache key covers every request part that changes the answer -- provider,
+model, locale, query, page -- so switching any of them correctly misses rather
+than returning another configuration's answer.
 """
 
 from __future__ import annotations
@@ -102,6 +103,9 @@ class SqliteCache:
         self._connection = sqlite3.connect(path, check_same_thread=False)
         self._connection.executescript(_SCHEMA)
         self._connection.commit()
+        # Expired rows are unreadable but not free: without this sweep they
+        # accumulate for as long as the file exists.
+        self.purge_expired()
 
     def get(self, key: str) -> str | None:
         """Return a live cached payload, or ``None`` if missing or expired."""
