@@ -133,7 +133,7 @@ grounded-prospector run --max-queries 100 --out out/campaign.csv   # 100% cache 
 This means scoring and filtering are free to iterate on after the data is collected. Changing
 `min_confidence`, or any scoring logic, then re-running takes under a second. `run_report.json`
 should show `searches_billed: 0` — if it does not, something in the brief changed the cache
-key (query text, `country`, or `results_per_page`).
+key (query text, `country`, `language`, or `results_per_page`).
 
 Use `--no-cache` only when you deliberately want fresh results.
 

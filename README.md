@@ -214,8 +214,8 @@ history, process listings and CI logs.
 | `GP_RATE_LIMIT_PER_MINUTE` | `30` | Token-bucket pacing |
 | `GP_CACHE_TTL_HOURS` | `168` | Response cache lifetime |
 
-Responses are cached in SQLite keyed by provider, page size, country, query and page number, so
-re-running a refined search costs nothing for the parts that did not change.
+Responses are cached in SQLite keyed by provider, page size, country, language, query and page
+number, so re-running a refined search costs nothing for the parts that did not change.
 
 > **Free Serper plans and `num`.** Serper rejects `num` above 10 when the query uses search
 > operators — which every X-ray query does — with
@@ -316,7 +316,7 @@ mypy --strict src
 pytest --cov
 ```
 
-301 tests, 97% coverage, `mypy --strict` clean. The suite runs entirely offline — there is no
+310 tests, 98% coverage, `mypy --strict` clean. The suite runs entirely offline — there is no
 network in CI and no key required to contribute. Provider tests build their response payloads
 inline, so each test states the API shape it depends on next to the assertion about it.
 

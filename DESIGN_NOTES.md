@@ -230,6 +230,35 @@ title-verified. The gate is not wrong about the evidence; the evidence arrived c
 
 ---
 
+## What review caught that a green suite did not
+
+Four defects survived a passing suite at 97% coverage and were found by review rather than by
+tests. Three of them share one shape: each lived in the *interaction* between two things the
+suite only ever exercised alone.
+
+- **The dedupe ranking.** An exclusion veto deliberately does not lower the score, and the
+  dedupe ranked duplicates on score alone — so a vetoed 1.00 row displaced a clean 0.85 row
+  for the same person, deleting a usable contact. Every scoring test asserted on a single
+  prospect; the bug needs two rows.
+- **Normalisation was ASCII-only.** Matching tokenised on `[a-z0-9]+`, which silently deletes
+  every letter outside it — consistently on both sides, so every ASCII test passed. But
+  `ślub` (wedding) collapsed to `lub` and matched inside `klub` (club), and an exclusion like
+  `łódź` collapsed to the bare letter `d` and vetoed nearly everything. The tool's own home
+  market is Polish; the failure sat in the gap between the test inputs and the production
+  inputs.
+- **The cache key omitted `language`.** Correcting `language: en` to `pl` in a brief silently
+  replayed the cached English results for the length of the TTL. Reaching the bug takes two
+  runs with different settings, which no single-call test expresses.
+- **A rejected API key exited 0** with an empty CSV and one warning per target —
+  indistinguishable, to a script or a tired operator, from a thin market. It now aborts the
+  run with exit code 2.
+
+The lesson worth keeping: coverage measures which lines ran, not which combinations were
+asserted. The suite's blind spot was never an untested line — it was two rows, two runs, two
+settings, where every test had one.
+
+---
+
 ## What it cost, and what it produced
 
 Three campaigns, one codebase, no code changes between them — a new brief file and `--search`:
