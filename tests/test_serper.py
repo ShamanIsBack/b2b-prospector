@@ -282,6 +282,20 @@ class TestCaching:
         assert len(recorder.requests) == 2
         cache.close()
 
+    async def test_changing_language_misses_the_cache(
+        self, tmp_path: Path, clock: FakeClock
+    ) -> None:
+        """Regression: `hl` was missing from the key, so correcting a brief's
+        `language` silently replayed the old language's results for the TTL."""
+        recorder = Recorder(ok(organic(2)), ok(organic(2)))
+        cache = SqliteCache(tmp_path / "c.sqlite", ttl_seconds=3600, clock=clock)
+
+        await make_provider(recorder, cache=cache, language="en").search("q", AGENCY)
+        await make_provider(recorder, cache=cache, language="pl").search("q", AGENCY)
+
+        assert len(recorder.requests) == 2
+        cache.close()
+
 
 class TestLifecycle:
     async def test_aclose_leaves_an_injected_client_alone(self) -> None:

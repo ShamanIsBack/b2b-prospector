@@ -273,8 +273,16 @@ class SerperProvider:
             ProviderAuthError: if the API key was rejected.
             ProviderError: if the response could not be understood.
         """
+        # Every parameter that changes what Serper returns must be in the key.
+        # Language was once missing: fixing `language: en` to `pl` in a brief
+        # then silently replayed the cached English results for the whole TTL.
         cache_key = make_cache_key(
-            self.name, str(self._results_per_page), self._country, query, str(page)
+            self.name,
+            str(self._results_per_page),
+            self._country,
+            self._language,
+            query,
+            str(page),
         )
 
         cached = self._cache.get(cache_key)
