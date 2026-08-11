@@ -48,3 +48,4 @@ htmlcov/
 # --- Personal working files (per global convention, not project artifacts) --
 LEARNING_NOTES.md
 TODO.md
+DEPLOY.md
