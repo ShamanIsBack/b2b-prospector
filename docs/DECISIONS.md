@@ -170,6 +170,12 @@ company name. "Al Noor Majlis Concierge, LLC" contains every token of "Majlis Co
 so a retired banker there passes the title gate. Tightening it would need the target's legal
 name, which the brief does not have. Documented rather than guessed at.
 
+**Amended by [ADR-009](#adr-009--a-target-may-be-a-phrase-not-only-a-company)** (2026-08-11):
+the gate now applies to any target, and its *meaning* depends on the target's kind — for a
+company a title match still means "works there now", for a phrase it means "describes
+themselves this way". The arithmetic here is unchanged; only the wording of the reason forks.
+ADR-009 also adds exclusion terms, which close the gate on rows this ADR would have opened.
+
 ---
 
 ## ADR-005 — A provider abstraction, with more than one real implementation
@@ -210,15 +216,22 @@ The tool was first built on the Gemini API's *Grounding with Google Search*. The
 was defensible: first-party Google, open to new signups, generous free tier, and officially
 sanctioned — a direct answer to ADR-001 and ADR-002.
 
-External review challenged it, and measurement against the installed SDK confirmed most of
-the challenge:
+External review challenged it. Most of the challenge held up, though not all of it was
+established the same way — the third column records how each verdict was reached, because a
+figure taken from a price list and a fact read off a type signature do not deserve equal
+weight:
 
-| Claim | Verdict |
-|---|---|
-| No pagination; hard result ceiling | **Correct, and decisive.** `GoogleSearchResult` in the SDK exposes only `search_suggestions` — no result array. The only links available are the sources the model chose to cite. There is no `num`, `page` or offset parameter. Whatever it cites is the ceiling. |
-| Non-deterministic | **Correct.** The model rewrites the query; identical runs can differ. `_interaction.executed_queries()` exists to observe this. |
-| Cost and latency at scale | **Correct.** ~$14/1k grounded searches at ~2–4 s each, versus ~$1/1k at ~200–500 ms. |
-| Risk of hallucination during extraction | **Rejected.** It describes a design where an LLM extracts fields from prose. ADR-003 rules that out structurally: only citation URLs and titles become data. |
+| Claim | Verdict | How it was established |
+|---|---|---|
+| No pagination; hard result ceiling | **Correct, and decisive.** `GoogleSearchResult` in the SDK exposes only `search_suggestions` — no result array. The only links available are the sources the model chose to cite. There is no `num`, `page` or offset parameter. Whatever it cites is the ceiling. | Inspected the installed SDK's own types. |
+| Non-deterministic | **Correct.** The model rewrites the query, so identical runs can differ. | Follows from the response shape: `google_search_call` steps record the queries the model chose, which need not be the one it was given. `_interaction.executed_queries()` exposes them. |
+| Cost and latency at scale | **Accepted.** ~$14/1k grounded searches at ~2–4 s each, versus ~$1/1k at ~200–500 ms. | **Vendor-published pricing and latency, not measured here.** Serper's side has since been borne out in practice; the grounding side has not been benchmarked, and would need a paid key to be. |
+| Risk of hallucination during extraction | **Rejected.** It describes a design where an LLM extracts fields from prose. ADR-003 rules that out structurally: only citation URLs and titles become data. | Structural — a property of the pipeline, so there is nothing to measure. |
+
+The cost row is the weakest of the four and it did not need to be strong. The pagination
+finding decides the question on its own: no amount of favourable pricing buys a result set the
+API never exposes. Had cost been the *only* objection, it would have been worth measuring
+before acting on it.
 
 The same review also proposed collapsing the project into a single class returning a
 DataFrame. That was declined — it would have discarded the test suite, type checking, cache,
@@ -345,3 +358,76 @@ LinkedIn deliberately stays hardcoded. The `site:` filter, the URL canonicaliser
 title parser are coupled on purpose (ADR-003): deterministic extraction only works because it
 knows one source's exact title format. Exposing the site filter alone would let someone write
 a valid-looking brief that silently produces garbage.
+
+---
+
+## ADR-009 — A target may be a phrase, not only a company
+
+**Status:** accepted · 2026-08-11
+
+### Context
+
+The tool was built to answer "who works at these companies", which assumes you can name the
+companies. That assumption held for two campaigns and then broke on the third: Polish wedding
+planners are a long tail of sole traders whose businesses are personal brands. There is no
+list to hand the tool.
+
+While running that campaign we noticed the query builder never inspects the target text — it
+interpolates it as a quoted phrase and nothing more. So a job-title phrase can be put in the
+company slot, and the query becomes `site:linkedin.com/in/ "konsultant ślubny" (roles…)`. It
+worked, and it produced the only usable rows in the run.
+
+Used that way, the confidence gate quietly changes meaning. For a company, a match in the
+result title means *works there now*, because that is what a LinkedIn title states (ADR-004).
+For a phrase, the same match means *describes themselves this way* — which, for a sole trader,
+is the more useful fact.
+
+### Decision
+
+Make it explicit rather than clever. A target carries a `kind` of `company` (default) or
+`phrase`. The kind changes nothing about the query or the arithmetic — the evidence is
+identical — and changes only how a match is *explained*, plus what it is checked against.
+
+Three things forced their way in once it was a real feature rather than a trick:
+
+**1. The review reasons had to fork.** A company found only in a snippet is probably a former
+employer, so the reviewer checks the profile's history. A phrase found only in a snippet means
+the person did not choose those words, so the reviewer judges the words they did choose. Using
+the company wording for a phrase was actively misleading — it invited people to look for an
+employment record that was never claimed.
+
+**2. Exclusion terms became necessary, not a nicety.** A phrase is a substring of longer
+phrases that mean something else entirely. Searching `"mistrz ceremonii"` (master of
+ceremonies) returns *funeral* celebrants, who match the words perfectly, pass every other
+signal and score 1.00. No weighting removes them, because nothing about them is weak — they
+are simply the wrong people. So `exclude` terms veto a row outright. They are also added to
+the query as negative terms, but the scoring check is the load-bearing one: a search engine
+given a rare phrase loosens the query, and the negative terms loosen with it.
+
+**3. The CSV needed a `Match type` column.** `Target agency` holding `konsultant ślubny` reads
+as a company that does not exist. The column was renamed to `Target` and a `Match type` column
+added, so a row states how it should be read instead of relying on the reader knowing.
+
+### The lesson that cost the most
+
+`country` biases ranking; it does **not** restrict language. Searching the English `"wedding
+planner"` with `country: pl` returned ten American planners. The Polish-inflected `"wedding
+plannerka"` returned ten genuine Polish ones. In an inflected language the local word form is
+a stronger geographic filter than any location phrase — and a *free* one, since it costs no
+extra query term.
+
+That is now a load-time lint rather than a paragraph in a runbook: a brief whose `language` is
+not `en` but whose phrase targets are plain ASCII gets a warning naming the offending phrases.
+It warns and proceeds — it is a judgement call about a valid brief, and the operator may have
+good reason.
+
+### Consequences
+
+The tool now covers two shapes of market instead of one, with no new backend, no new
+dependency and no change to the query builder. `--demo` exercises both kinds offline.
+
+The honest limitation: **phrase mode has a much worse signal-to-noise ratio.** The campaign
+that motivated it returned 320 rows of which roughly 43 were usable. The gate is doing its job
+— most people who mention a phrase are not that thing — but a phrase run needs a human pass in
+a way a company run does not. Where a real target list exists, `company` remains the better
+tool. Phrase mode is for when no such list exists, which is exactly when nothing else works.
