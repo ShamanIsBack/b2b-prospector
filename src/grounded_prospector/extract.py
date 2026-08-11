@@ -18,6 +18,7 @@ rendered, and the trailing marker varies by locale.
 from __future__ import annotations
 
 import re
+import unicodedata
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 
@@ -41,7 +42,9 @@ _TRAILING_NOISE = frozenset(
 # Tokens dropped before matching, because they carry no identity. The list is
 # company-oriented on purpose -- these are legal-form suffixes -- and applying it
 # to a phrase target is harmless: dropping "the" or "of" only loosens the match.
-_COMPANY_STOPWORDS = frozenset({"the", "and", "of", "llc", "ltd", "fz", "fze", "dmcc", "l.l.c"})
+# Dotted forms ("L.L.C") need no entry: normalisation strips the dots and the
+# single letters left behind fall to the length filter in _target_tokens.
+_COMPANY_STOPWORDS = frozenset({"the", "and", "of", "llc", "ltd", "fz", "fze", "dmcc"})
 
 # Scoring weights. They sum to 1.0 so the score reads as a percentage.
 _WEIGHT_TARGET_IN_TITLE = 0.40
@@ -214,13 +217,32 @@ def extract_location_hint(snippet: str | None) -> str | None:
 
 
 def _normalise(text: str) -> str:
-    """Casefold and collapse to alphanumeric tokens for tolerant matching."""
-    return " ".join(re.findall(r"[a-z0-9]+", clean_text(text).casefold()))
+    """Casefold and collapse to alphanumeric tokens for tolerant matching.
+
+    Tokenisation must be Unicode-aware, because the inputs are not English: an
+    ASCII-only pattern silently deletes every letter outside ``[a-z]``, so
+    ``"ślub"`` (wedding) collapses to ``"lub"`` and matches ``"klub"``, and an
+    exclusion like ``"łódź"`` collapses to the bare letter ``"d"`` and vetoes
+    almost every row. NFKC first, so composed and decomposed forms of the same
+    character compare equal regardless of which one the search engine returned.
+    """
+    folded = unicodedata.normalize("NFKC", clean_text(text)).casefold()
+    return " ".join(re.findall(r"[^\W_]+", folded))
 
 
 def _target_tokens(target: str) -> list[str]:
-    """Return the identity-bearing tokens of a target -- a company name or a phrase."""
-    return [tok for tok in _normalise(target).split() if tok not in _COMPANY_STOPWORDS]
+    """Return the identity-bearing tokens of a target -- a company name or a phrase.
+
+    Single-character tokens are dropped along with the stopwords: ``"L.L.C"``
+    tokenises to three bare letters, and Polish phrase targets carry the
+    preposition ``"w"`` -- each would substring-match almost any title and turn
+    the gate into a formality.
+    """
+    return [
+        token
+        for token in _normalise(target).split()
+        if token not in _COMPANY_STOPWORDS and len(token) > 1
+    ]
 
 
 def is_plausible_person_name(name: str | None) -> bool:

@@ -368,3 +368,74 @@ class TestExclusions:
             "kind": TargetKind.PHRASE,
         }
         assert score_prospect(**common, exclude=("recruiter",)) == score_prospect(**common)
+
+
+class TestUnicodeMatching:
+    """Regression: normalisation was ASCII-only and deleted every other letter.
+
+    That mangled exactly the market this tool was built for: "ślub" (wedding)
+    collapsed to "lub" and matched inside "klub" (club), and "łódź" collapsed to
+    the single letter "d" and vetoed nearly everything. The failures below all
+    looked correct on ASCII inputs, which is why 300 tests never noticed.
+    """
+
+    def test_a_diacritic_target_matches_its_own_title(self) -> None:
+        result = score_prospect(
+            raw_title="Anna Nowak - Wedding Planner - Wytwórnia Ślubów | LinkedIn",
+            name="Anna Nowak",
+            headline="Wedding Planner",
+            target="Wytwórnia Ślubów",
+            roles=["Wedding Planner"],
+        )
+        assert not result.needs_review
+        assert result.score == 1.0
+
+    def test_a_diacritic_target_does_not_match_a_lookalike_ascii_word(self) -> None:
+        """ASCII-folded, target "Ślub" became "lub" and matched "Lublinianka"."""
+        result = score_prospect(
+            raw_title="Piotr Zieliński - Dyrektor - Hotel Lublinianka | LinkedIn",
+            name="Piotr Zieliński",
+            headline="Dyrektor",
+            target="Ślub",
+            roles=["Dyrektor"],
+            kind=TargetKind.PHRASE,
+        )
+        assert result.needs_review
+        assert any("not found" in reason for reason in result.reasons)
+
+    def test_a_diacritic_exclusion_does_not_veto_a_lookalike_ascii_word(self) -> None:
+        result = score_prospect(
+            raw_title="Jan Kowalski - Manager - Klub Sportowy Legia | LinkedIn",
+            name="Jan Kowalski",
+            headline="Manager",
+            target="Klub Sportowy Legia",
+            roles=["Manager"],
+            exclude=("ślub",),
+        )
+        assert not any("excluded" in reason for reason in result.reasons)
+
+    def test_a_diacritic_exclusion_still_catches_its_inflections(self) -> None:
+        """The substring rule must keep working once the letters survive."""
+        result = score_prospect(
+            raw_title="Ewa Wiśniewska - Organizacja Ślubów i Wesel | LinkedIn",
+            name="Ewa Wiśniewska",
+            headline="Organizacja Ślubów i Wesel",
+            target="organizacja ślubów",
+            roles=["Organizator"],
+            kind=TargetKind.PHRASE,
+            exclude=("ślub",),
+        )
+        assert any("excluded term 'ślub'" in reason for reason in result.reasons)
+
+    def test_a_target_of_only_bare_letters_cannot_open_the_gate(self) -> None:
+        """ "S.A." tokenises to two single letters, each a substring of nearly
+        any title. A target left with no identity-bearing token must flag every
+        row rather than clear every row."""
+        result = score_prospect(
+            raw_title="Omar Haddad - Consultant - Alpha Group | LinkedIn",
+            name="Omar Haddad",
+            headline="Consultant",
+            target="S.A.",
+            roles=["Consultant"],
+        )
+        assert result.needs_review, "bare 's' and 'a' must not stand in for a company"
