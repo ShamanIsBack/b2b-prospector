@@ -1,14 +1,27 @@
-"""Record one real Gemini grounding response to a test fixture.
+"""Record one real Gemini grounding response, and print its shape.
 
-Run this once, with a real API key, before touching the response parser. Every
-offline test and the ``--demo`` mode replay the file it writes, so the adapter is
-built against an actual API response rather than against documentation prose.
+This is a tool for working *on* :mod:`grounded_prospector.providers._interaction`,
+not a part of the test suite. Nothing in the repository reads the file it writes:
+the provider tests build their payloads inline, and ``--demo`` replays the
+fabricated recordings in ``src/grounded_prospector/demo/``. Reach for it when a
+change to the parser needs checking against what the API actually returns, rather
+than against the documentation's description of it.
+
+The summary it prints matters more than the file. It reports which searches the
+model actually ran -- it rewrites the query, which is one of the reasons grounding
+is the secondary backend (``docs/DECISIONS.md`` ADR-006) -- and how many
+``url_citation`` annotations came back, since those are the entire usable yield of
+a grounded response.
+
+Its output is left untracked on purpose. A real recording is real people's names
+and employers; the repository ships fabricated profiles only.
 
 Usage::
 
     python scripts/record_fixture.py "Dune & Palm Events"
 
-Costs one grounded prompt (the model may issue several billable searches for it).
+Requires ``GEMINI_API_KEY``. Costs one grounded prompt, and the model may issue
+several billable searches for it.
 """
 
 from __future__ import annotations

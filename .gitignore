@@ -5,13 +5,18 @@
 # --- Local config ----------------------------------------------------------
 # Your own search brief. search.example.yaml is the tracked template.
 search.yaml
+search-*.yaml
 agencies.yaml
 
 # --- Output ---------------------------------------------------------------
 # Generated prospect data contains real people's names and job titles.
 out/
 *.csv
-!tests/fixtures/*.csv
+
+# scripts/record_fixture.py writes a real API response here, containing real
+# names and employers. The repository ships fabricated profiles only, so the
+# recording stays local -- nothing in the test suite reads it.
+tests/fixtures/
 
 # --- Cache ----------------------------------------------------------------
 .cache/

@@ -2,17 +2,17 @@
 
 Everything here keeps the suite offline and instant: no network, no real clock,
 no real sleeping.
+
+Provider responses are *not* loaded from here. Each provider test builds the
+payload shape it is exercising inline -- see ``make_payload`` in
+``test_providers.py`` and the ``httpx.MockTransport`` handlers in
+``test_serper.py`` -- so a test states the response it depends on next to the
+assertion about it.
 """
 
 from __future__ import annotations
 
-import json
-from pathlib import Path
-from typing import Any
-
 import pytest
-
-FIXTURE_DIR = Path(__file__).parent / "fixtures"
 
 
 class FakeClock:
@@ -40,15 +40,3 @@ class FakeClock:
 def clock() -> FakeClock:
     """Return a fresh fake clock."""
     return FakeClock()
-
-
-def load_fixture(name: str) -> dict[str, Any]:
-    """Load a recorded API response from ``tests/fixtures``."""
-    payload: dict[str, Any] = json.loads((FIXTURE_DIR / name).read_text(encoding="utf-8"))
-    return payload
-
-
-@pytest.fixture
-def gemini_interaction() -> dict[str, Any]:
-    """Return the recorded Gemini grounding response used across provider tests."""
-    return load_fixture("gemini_interaction_raw.json")
