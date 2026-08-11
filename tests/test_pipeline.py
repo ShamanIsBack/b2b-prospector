@@ -15,7 +15,12 @@ from grounded_prospector.pipeline import (
     plan_queries,
     run_pipeline,
 )
-from grounded_prospector.providers.base import Capabilities, ProviderError, SearchResult
+from grounded_prospector.providers.base import (
+    Capabilities,
+    ProviderAuthError,
+    ProviderError,
+    SearchResult,
+)
 from grounded_prospector.providers.fixture import FixtureProvider
 
 NOW = datetime(2026, 8, 10, tzinfo=UTC)
@@ -52,17 +57,21 @@ class ScriptedProvider:
         *,
         supports_pagination: bool = True,
         fail_on: str | None = None,
+        auth_fail_on: str | None = None,
     ) -> None:
         self.capabilities = Capabilities(
             supports_pagination=supports_pagination, provides_snippets=True
         )
         self._pages = pages
         self._fail_on = fail_on
+        self._auth_fail_on = auth_fail_on
         self.requested: list[tuple[str, int]] = []
         self.closed = False
 
     async def search(self, query: str, target: SearchTarget, *, page: int = 1) -> SearchResult:  # noqa: ARG002
         self.requested.append((target.name, page))
+        if self._auth_fail_on == target.name:
+            raise ProviderAuthError("the key was rejected")
         if self._fail_on == target.name:
             raise ProviderError(f"backend exploded for {target.name}")
 
@@ -269,6 +278,14 @@ class TestRunPipeline:
 
         assert len(prospects) == 1
         assert any("Beta Travel" in message for message in report.errors)
+
+    async def test_a_rejected_key_aborts_the_whole_run(self) -> None:
+        """Regression: an auth failure was recorded as one warning per target
+        and the run 'succeeded' with an empty result. Every target fails
+        identically on a rejected key, so the run must fail as a whole."""
+        provider = ScriptedProvider({}, auth_fail_on="Acme Events")
+        with pytest.raises(ProviderAuthError):
+            await run_pipeline(BRIEF, provider)
 
     async def test_report_counts_discarded_noise(self) -> None:
         provider = ScriptedProvider(

@@ -14,9 +14,12 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
+import grounded_prospector.cli
 from grounded_prospector.cli import _build_provider, app
 from grounded_prospector.config import Settings
 from grounded_prospector.infra.cache import NullCache
+from grounded_prospector.models import SearchTarget
+from grounded_prospector.providers.base import Capabilities, ProviderAuthError, SearchResult
 from grounded_prospector.targets import load_brief
 
 runner = CliRunner()
@@ -89,6 +92,18 @@ class TestDemo:
         report = json.loads((out.parent / "run_report.json").read_text(encoding="utf-8"))
         assert report["targets_searched"] == 1
 
+    def test_min_confidence_keeps_the_report_consistent_with_the_csv(self, tmp_path: Path) -> None:
+        """Regression: the filter updated `prospects` but not
+        `prospects_needing_review`, so the summary claimed reviewable rows that
+        were not in the file."""
+        out = tmp_path / "p.csv"
+        runner.invoke(app, ["run", "--demo", "--min-confidence", "0.9", "--out", str(out)])
+
+        report = json.loads((out.parent / "run_report.json").read_text(encoding="utf-8"))
+        rows = json.loads(out.with_suffix(".json").read_text(encoding="utf-8"))
+        assert report["prospects"] == len(rows)
+        assert report["prospects_needing_review"] == sum(1 for r in rows if r["needs_review"])
+
 
 class TestDryRun:
     def test_dry_run_prints_queries_and_writes_nothing(self, tmp_path: Path) -> None:
@@ -126,6 +141,44 @@ class TestMissingCredentials:
         )
         result = runner.invoke(app, ["run", "--provider", "nope"])
         assert result.exit_code != 0
+
+
+class RejectedKeyBackend:
+    """A backend whose key the vendor turns away on every request."""
+
+    name = "serper"
+    capabilities = Capabilities(supports_pagination=True, provides_snippets=True)
+
+    def __init__(self) -> None:
+        self.closed = False
+
+    async def search(self, query: str, target: SearchTarget, *, page: int = 1) -> SearchResult:  # noqa: ARG002
+        raise ProviderAuthError("Serper rejected the API key (HTTP 403).")
+
+    async def aclose(self) -> None:
+        self.closed = True
+
+
+class TestRejectedCredentials:
+    def test_a_rejected_key_fails_the_run_with_a_clear_error(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Regression: a rejected key used to exit 0 with an empty CSV and one
+        warning per target -- indistinguishable, to a script, from a thin market."""
+        (tmp_path / "search.yaml").write_text(
+            "location: Dubai\nroles: [MICE]\ntargets:\n  - name: Acme\n  - name: Beta\n",
+            encoding="utf-8",
+        )
+        backend = RejectedKeyBackend()
+        monkeypatch.setattr(grounded_prospector.cli, "_build_provider", lambda *_args: backend)
+
+        out = tmp_path / "p.csv"
+        result = runner.invoke(app, ["run", "--out", str(out)])
+
+        assert result.exit_code == 2
+        assert "rejected the API key" in result.output
+        assert backend.closed, "the backend must be released even on failure"
+        assert not out.exists(), "a failed run must not leave an empty deliverable"
 
 
 class TestSearchBriefDrivesEverything:

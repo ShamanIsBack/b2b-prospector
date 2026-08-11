@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import logging
 from pathlib import Path
 from typing import Annotated
 
@@ -230,7 +229,7 @@ def run(
     verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Debug logging.")] = False,
 ) -> None:
     """Search for decision-makers and write them to CSV."""
-    log = setup_logging(verbose=verbose)
+    setup_logging(verbose=verbose)
     settings = Settings()
 
     if demo:
@@ -268,7 +267,15 @@ def run(
         console.print(f"[red]{error}[/red]")
         raise typer.Exit(code=2) from error
 
-    prospects, report = asyncio.run(_execute(brief, backend, options, log))
+    try:
+        prospects, report = asyncio.run(_execute(brief, backend, options))
+    except ProviderError as error:
+        # Reaching here means nothing could be searched at all -- today that is
+        # a rejected key. Exit 2 to match the missing-key path above: both are
+        # configuration problems, and a script must be able to tell either apart
+        # from a run that genuinely found nothing.
+        console.print(f"[red]{error}[/red]")
+        raise typer.Exit(code=2) from error
 
     report.cache_hits = cache.hits
     report.cache_misses = cache.misses
@@ -277,7 +284,11 @@ def run(
 
     if threshold > 0:
         prospects = [p for p in prospects if p.confidence >= threshold]
+        # The report must describe the rows actually written, not the pre-filter
+        # set -- a summary claiming more reviewable rows than the CSV holds sends
+        # someone hunting for prospects that are not there.
         report.prospects = len(prospects)
+        report.prospects_needing_review = sum(1 for p in prospects if p.needs_review)
 
     csv_path = write_csv(prospects, out)
     write_json(prospects, out.with_suffix(".json"))
@@ -295,14 +306,10 @@ async def _execute(
     brief: SearchBrief,
     backend: SearchProvider,
     options: PipelineOptions,
-    log: logging.Logger,
 ) -> tuple[list[Prospect], RunReport]:
     """Run the pipeline and always close the backend afterwards."""
     try:
         return await run_pipeline(brief, backend, options)
-    except ProviderError as error:
-        log.exception("search failed")
-        raise typer.Exit(code=1) from error
     finally:
         await backend.aclose()
 

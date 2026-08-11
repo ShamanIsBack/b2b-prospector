@@ -32,7 +32,11 @@ from grounded_prospector.models import (
     SearchTarget,
     TargetKind,
 )
-from grounded_prospector.providers.base import ProviderError, SearchProvider
+from grounded_prospector.providers.base import (
+    ProviderAuthError,
+    ProviderError,
+    SearchProvider,
+)
 from grounded_prospector.query import build_xray_query
 from grounded_prospector.urls import canonicalise_profile_url, dedupe_key
 
@@ -88,6 +92,12 @@ async def _collect_target(
         try:
             result = await provider.search(query, target, page=page)
         except ProviderError as error:
+            if isinstance(error, ProviderAuthError):
+                # A rejected key fails identically for every target, so carrying
+                # on would spend the rest of the run rediscovering it -- and a
+                # run where nothing could be searched must not exit as a success
+                # with an empty CSV. Aborting the whole run is the honest shape.
+                raise
             errors.append(f"{target.name} (page {page}): {error}")
             break
 
@@ -235,7 +245,17 @@ async def run_pipeline(
         async with semaphore:
             return await _collect_target(provider, target, query, options, budget, errors)
 
-    collected = await asyncio.gather(*(worker(target, query) for target, query in plan))
+    try:
+        async with asyncio.TaskGroup() as group:
+            tasks = [group.create_task(worker(target, query)) for target, query in plan]
+    except* ProviderAuthError as auth_failures:
+        # One rejected key means every worker fails the same way. The TaskGroup
+        # cancels the siblings (a worker already past the semaphore may slip one
+        # request through, which fails identically and unbilled), so one error
+        # surfaces instead of one warning per target.
+        raise auth_failures.exceptions[0] from None
+
+    collected = [task.result() for task in tasks]
 
     all_hits = [hit for hits, _ in collected for hit in hits]
     billed = sum(count for _, count in collected)
