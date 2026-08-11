@@ -21,7 +21,7 @@ import re
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 
-from grounded_prospector.models import CONFIDENCE_REVIEW_THRESHOLD
+from grounded_prospector.models import CONFIDENCE_REVIEW_THRESHOLD, TargetKind
 
 # Separators between name / headline / company. Surrounding whitespace is required
 # so that hyphenated names ("Anne-Marie") and companies ("Al-Futtaim") survive.
@@ -38,14 +38,16 @@ _TRAILING_NOISE = frozenset(
     }
 )
 
-# Tokens dropped before matching a company name, because they carry no identity.
-_AGENCY_STOPWORDS = frozenset({"the", "and", "of", "llc", "ltd", "fz", "fze", "dmcc", "l.l.c"})
+# Tokens dropped before matching, because they carry no identity. The list is
+# company-oriented on purpose -- these are legal-form suffixes -- and applying it
+# to a phrase target is harmless: dropping "the" or "of" only loosens the match.
+_COMPANY_STOPWORDS = frozenset({"the", "and", "of", "llc", "ltd", "fz", "fze", "dmcc", "l.l.c"})
 
 # Scoring weights. They sum to 1.0 so the score reads as a percentage.
-_WEIGHT_AGENCY_MATCH = 0.40
+_WEIGHT_TARGET_IN_TITLE = 0.40
 # Partial credit: the company is named, but in free text that also holds past
 # roles. Enough to rank above a non-match, never enough to skip review.
-_WEIGHT_AGENCY_IN_SNIPPET = 0.20
+_WEIGHT_TARGET_IN_SNIPPET = 0.20
 _WEIGHT_ROLE_MATCH = 0.25
 _WEIGHT_WELL_FORMED = 0.20
 _WEIGHT_PLAUSIBLE_NAME = 0.15
@@ -216,9 +218,9 @@ def _normalise(text: str) -> str:
     return " ".join(re.findall(r"[a-z0-9]+", clean_text(text).casefold()))
 
 
-def _agency_tokens(agency: str) -> list[str]:
-    """Return the identity-bearing tokens of a company name."""
-    return [tok for tok in _normalise(agency).split() if tok not in _AGENCY_STOPWORDS]
+def _target_tokens(target: str) -> list[str]:
+    """Return the identity-bearing tokens of a target -- a company name or a phrase."""
+    return [tok for tok in _normalise(target).split() if tok not in _COMPANY_STOPWORDS]
 
 
 def is_plausible_person_name(name: str | None) -> bool:
@@ -235,50 +237,88 @@ def is_plausible_person_name(name: str | None) -> bool:
     return _MIN_NAME_TOKENS <= len(tokens) <= _MAX_NAME_TOKENS
 
 
+def _match_reason(target: str, kind: TargetKind, *, in_snippet: bool) -> str:
+    """Explain a missing or weak target match in the language of its kind.
+
+    The two kinds fail differently, and a reviewer acts on them differently. A
+    company found only in free text is probably a *former* employer, so the row
+    gets checked against the profile's history. A phrase found only in free text
+    means the person did not choose those words to describe themselves, so the
+    row gets judged on the words they did choose.
+    """
+    if kind is TargetKind.PHRASE:
+        if in_snippet:
+            return (
+                f"phrase {target!r} appears only in the snippet, not in the headline -- "
+                f"this is not how they describe themselves"
+            )
+        return f"phrase {target!r} not found in the result"
+
+    if in_snippet:
+        return (
+            f"company {target!r} appears only in the result snippet, not the title -- "
+            f"this may be a former employer"
+        )
+    return f"target company {target!r} not found in the result"
+
+
 def score_prospect(
     *,
     raw_title: str,
     name: str | None,
     headline: str | None,
-    agency: str,
+    target: str,
     roles: Sequence[str],
     snippet: str | None = None,
+    kind: TargetKind = TargetKind.COMPANY,
+    exclude: Sequence[str] = (),
 ) -> Confidence:
     """Score how likely a parsed result is to be the person we searched for.
 
     Four independent signals contribute. The dominant one is whether the target
-    company actually appears, because the most common false positive is a real
-    person at the wrong company: a search for staff *at* an agency readily
-    returns people whose profile merely mentions it.
+    text actually appears, because the most common false positive is a real
+    person matched for the wrong reason: a search for staff *at* a company
+    readily returns people whose profile merely mentions it.
 
-    Where the company name appears matters as much as whether it appears. A
-    LinkedIn result title states the person's *current* employer. A snippet is
-    free text that also contains past roles, so "worked at Acme 2015-2018"
-    matches it just as readily as someone who works there today. Measured on a
-    real 433-prospect run: 96 matches came from titles and 150 from snippets
-    alone, and the snippet-only group included a retired banker.
+    *Where* the target appears matters as much as whether it appears. A LinkedIn
+    result title carries the person's own headline and current employer; a
+    snippet is free text that also holds past roles, so "worked at Acme
+    2015-2018" matches just as readily as someone who works there today.
+    Measured on a real 433-prospect run: 96 matches came from titles and 150 from
+    snippets alone, and the snippet-only group included a retired banker.
 
     So a title match clears the row for outreach; a snippet-only match earns
-    partial credit but still asks for human eyes. Location is deliberately
-    absent from the scoring — see :func:`extract_location_hint`.
+    partial credit but still asks for human eyes. ``kind`` changes only how a
+    match is *explained*, because the evidence and the arithmetic are the same
+    either way. Location is deliberately absent from the scoring — see
+    :func:`extract_location_hint`.
+
+    ``exclude`` terms veto a row outright rather than subtracting from it. A
+    phrase is a substring of longer phrases that mean something else entirely:
+    searching ``"mistrz ceremonii"`` (master of ceremonies) returns funeral
+    celebrants, who match the words perfectly and are the wrong people
+    completely. They pass every other signal, so only a veto removes them.
     """
     reasons: list[str] = []
     score = 0.0
 
-    tokens = _agency_tokens(agency)
+    tokens = _target_tokens(target)
     in_title = bool(tokens) and all(tok in _normalise(raw_title) for tok in tokens)
     in_snippet = bool(tokens) and all(tok in _normalise(snippet or "") for tok in tokens)
 
     if in_title:
-        score += _WEIGHT_AGENCY_MATCH
+        score += _WEIGHT_TARGET_IN_TITLE
     elif in_snippet:
-        score += _WEIGHT_AGENCY_IN_SNIPPET
-        reasons.append(
-            f"company {agency!r} appears only in the result snippet, not the title -- "
-            f"this may be a former employer"
-        )
+        score += _WEIGHT_TARGET_IN_SNIPPET
+        reasons.append(_match_reason(target, kind, in_snippet=True))
     else:
-        reasons.append(f"target company {agency!r} not found in the result")
+        reasons.append(_match_reason(target, kind, in_snippet=False))
+
+    excluded_haystack = _normalise(f"{raw_title} {snippet or ''}")
+    vetoed = [
+        term for term in exclude if _normalise(term) and _normalise(term) in excluded_haystack
+    ]
+    reasons.extend(f"excluded term {term!r} appears in the result" for term in vetoed)
 
     role_haystack = _normalise(f"{headline or ''} {snippet or ''}")
     if role_haystack and any(_normalise(role) in role_haystack for role in roles):
@@ -299,10 +339,13 @@ def score_prospect(
     # Guard against float drift so the value always renders cleanly as a percentage.
     score = round(min(score, 1.0), 4)
 
-    # The company signal is a gate, not just a weight. Someone whose profile
+    # The target signal is a gate, not just a weight. Someone whose profile
     # merely mentions the target is not a lower-confidence version of the right
     # person, they are a different person -- so no combination of the other
-    # signals may clear them. Only a *title* match, which states the current
-    # employer, opens the gate.
-    needs_review = score < CONFIDENCE_REVIEW_THRESHOLD or not in_title
+    # signals may clear them. Only a *title* match opens the gate: for a company
+    # that means "employed there now", for a phrase "describes themselves so".
+    #
+    # An excluded term closes the gate again no matter how well everything else
+    # scored, which is the point of having one.
+    needs_review = score < CONFIDENCE_REVIEW_THRESHOLD or not in_title or bool(vetoed)
     return Confidence(score=score, needs_review=needs_review, reasons=reasons)

@@ -7,14 +7,15 @@ from pathlib import Path
 import pytest
 
 from grounded_prospector.demo import DEMO_BRIEF
-from grounded_prospector.targets import SearchBriefError, load_brief
+from grounded_prospector.models import TargetKind
+from grounded_prospector.targets import SearchBriefError, lint_brief, load_brief
 
 VALID = """
 location: Dubai
 roles:
   - MICE
   - Director
-agencies:
+targets:
   - name: Acme Events
     segment: mice
   - name: Beta Travel
@@ -30,9 +31,9 @@ def write(tmp_path: Path, content: str, name: str = "search.yaml") -> Path:
 def test_loads_a_valid_brief(tmp_path: Path) -> None:
     brief = load_brief(write(tmp_path, VALID))
     assert brief.location == "Dubai"
-    assert [agency.name for agency in brief.agencies] == ["Acme Events", "Beta Travel"]
-    assert brief.agencies[0].segment == "mice"
-    assert brief.agencies[1].segment is None
+    assert [target.name for target in brief.targets] == ["Acme Events", "Beta Travel"]
+    assert brief.targets[0].segment == "mice"
+    assert brief.targets[1].segment is None
 
 
 def test_omitted_fields_fall_back_to_current_behaviour(tmp_path: Path) -> None:
@@ -55,7 +56,7 @@ roles: [CTO, Head of Engineering]
 keywords: [fintech, payments]
 max_pages: 1
 min_confidence: 0.7
-agencies:
+targets:
   - name: Booksy
     segment: saas
 """
@@ -74,7 +75,7 @@ def test_missing_file_is_reported_with_its_path(tmp_path: Path) -> None:
         load_brief(tmp_path / "absent.yaml")
 
 
-def test_a_legacy_agencies_file_gets_migration_guidance(
+def test_a_legacy_targets_file_gets_migration_guidance(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Anyone upgrading has agencies.yaml and would otherwise just see 'not found'."""
@@ -121,20 +122,80 @@ def test_out_of_range_confidence_is_rejected(tmp_path: Path) -> None:
         load_brief(write(tmp_path, content))
 
 
-def test_an_empty_agency_list_is_an_error(tmp_path: Path) -> None:
-    with pytest.raises(SearchBriefError, match="no agencies"):
+def test_an_empty_target_list_is_an_error(tmp_path: Path) -> None:
+    with pytest.raises(SearchBriefError, match="no targets"):
         load_brief(write(tmp_path, "location: Dubai\nroles: []\nagencies: []\n"))
 
 
 def test_the_bundled_demo_brief_is_valid() -> None:
     """--demo must never fail on its own shipped data."""
     brief = load_brief(DEMO_BRIEF)
-    assert len(brief.agencies) == 3
+    assert len(brief.targets) == 4
     assert brief.roles
 
 
 def test_the_example_brief_shipped_in_the_repo_is_valid() -> None:
     path = Path(__file__).resolve().parents[1] / "search.example.yaml"
     brief = load_brief(path)
-    assert len(brief.agencies) == 14
+    assert len(brief.targets) == 14
     assert brief.country == "ae"
+
+
+LEGACY_KEY = """
+location: Dubai
+agencies:
+  - name: Acme Events
+"""
+
+ASCII_PHRASE_BRIEF = """
+location: ""
+country: pl
+language: pl
+targets:
+  - name: wedding planner
+    kind: phrase
+  - name: konsultant ślubny
+    kind: phrase
+"""
+
+
+def test_the_old_agencies_key_still_loads(tmp_path: Path) -> None:
+    """Briefs written before the rename must keep working untouched."""
+    brief = load_brief(write(tmp_path, LEGACY_KEY))
+    assert [target.name for target in brief.targets] == ["Acme Events"]
+
+
+def test_targets_default_to_company_kind(tmp_path: Path) -> None:
+    brief = load_brief(write(tmp_path, VALID))
+    assert all(target.kind is TargetKind.COMPANY for target in brief.targets)
+
+
+def test_lint_warns_about_an_english_phrase_in_a_non_english_brief(tmp_path: Path) -> None:
+    """`country` biases ranking without restricting language.
+
+    Searching the English "wedding planner" with country: pl returned ten
+    American planners; the inflected "wedding plannerka" returned ten Polish
+    ones. That cost real credits to discover, so the tool now says so.
+    """
+    warnings = lint_brief(load_brief(write(tmp_path, ASCII_PHRASE_BRIEF)))
+    assert len(warnings) == 1
+    assert "'wedding planner'" in warnings[0]
+    # The Polish-spelled phrase is exactly what the warning asks for, so it
+    # must not itself be flagged.
+    assert "konsultant" not in warnings[0]
+
+
+def test_lint_is_silent_for_company_targets_in_a_non_english_brief(tmp_path: Path) -> None:
+    """A company name is a proper noun; it does not inflect and must not warn."""
+    brief = load_brief(write(tmp_path, "location: ''\nlanguage: pl\ntargets:\n  - name: Booksy\n"))
+    assert lint_brief(brief) == []
+
+
+def test_lint_is_silent_for_an_english_brief(tmp_path: Path) -> None:
+    brief = load_brief(
+        write(
+            tmp_path,
+            "location: ''\nlanguage: en\ntargets:\n  - name: wedding planner\n    kind: phrase\n",
+        )
+    )
+    assert lint_brief(brief) == []

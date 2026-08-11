@@ -11,6 +11,9 @@ from grounded_prospector.extract import (
     score_prospect,
     split_name,
 )
+from grounded_prospector.models import (
+    TargetKind,
+)
 
 ROLES = ["MICE", "Director", "Head of"]
 
@@ -162,7 +165,7 @@ class TestScoreProspect:
             raw_title="Jane Doe - MICE Manager - Dune & Palm Events | LinkedIn",
             name="Jane Doe",
             headline="MICE Manager - Dune & Palm Events",
-            agency="Dune & Palm Events",
+            target="Dune & Palm Events",
             roles=ROLES,
         )
         assert result.score == 1.0
@@ -172,10 +175,10 @@ class TestScoreProspect:
     def test_right_person_wrong_company_is_flagged(self) -> None:
         """The dominant false positive: a real person who does not work there."""
         result = score_prospect(
-            raw_title="Jane Doe - MICE Manager - Some Other Agency | LinkedIn",
+            raw_title="Jane Doe - MICE Manager - Some Other SearchTarget | LinkedIn",
             name="Jane Doe",
             headline="MICE Manager",
-            agency="Dune & Palm Events",
+            target="Dune & Palm Events",
             roles=ROLES,
         )
         assert result.needs_review
@@ -186,17 +189,17 @@ class TestScoreProspect:
             raw_title="Jane Doe - Director - Dune & Palm Events LLC | LinkedIn",
             name="Jane Doe",
             headline="Director",
-            agency="Dune & Palm Events",
+            target="Dune & Palm Events",
             roles=ROLES,
         )
         assert not result.needs_review
 
-    def test_agency_match_is_case_and_punctuation_insensitive(self) -> None:
+    def test_target_match_is_case_and_punctuation_insensitive(self) -> None:
         result = score_prospect(
             raw_title="Jane Doe - Director - GulfCo, Events! | LinkedIn",
             name="Jane Doe",
             headline="Director",
-            agency="GulfCo Events",
+            target="GulfCo Events",
             roles=ROLES,
         )
         assert not result.needs_review
@@ -206,7 +209,7 @@ class TestScoreProspect:
             raw_title="Jane Doe - Barista - Dune & Palm Events | LinkedIn",
             name="Jane Doe",
             headline="Barista",
-            agency="Dune & Palm Events",
+            target="Dune & Palm Events",
             roles=ROLES,
         )
         assert result.score == pytest.approx(0.75)
@@ -217,7 +220,7 @@ class TestScoreProspect:
             raw_title="Top 10 Event Agencies in Dubai",
             name=None,
             headline=None,
-            agency="Dune & Palm Events",
+            target="Dune & Palm Events",
             roles=ROLES,
         )
         assert result.score == 0.0
@@ -234,7 +237,7 @@ class TestScoreProspect:
             raw_title="Jane Doe - MICE Manager | LinkedIn",
             name="Jane Doe",
             headline="MICE Manager",
-            agency="Dune & Palm Events",
+            target="Dune & Palm Events",
             roles=ROLES,
             snippet="Dubai · MICE Manager · Dune & Palm Events · Incentive programmes.",
         )
@@ -247,7 +250,7 @@ class TestScoreProspect:
         common = {
             "name": "Jane Doe",
             "headline": "MICE Manager",
-            "agency": "Dune & Palm Events",
+            "target": "Dune & Palm Events",
             "roles": ROLES,
         }
         titled = score_prospect(
@@ -267,7 +270,101 @@ class TestScoreProspect:
             raw_title="Jane Doe - MICE Director Head of Events - Dune & Palm Events | LinkedIn",
             name="Jane Doe",
             headline="MICE Director Head of Events",
-            agency="Dune & Palm Events",
+            target="Dune & Palm Events",
             roles=ROLES,
         )
         assert result.score <= 1.0
+
+
+class TestPhraseTargets:
+    """A phrase target asks a different question, so it must answer differently."""
+
+    def test_a_snippet_only_phrase_is_not_called_a_former_employer(self) -> None:
+        """The company wording would be actively misleading: a phrase is not a job."""
+        result = score_prospect(
+            raw_title="Nadia Fahim - Guest Relations Manager | LinkedIn",
+            name="Nadia Fahim",
+            headline="Guest Relations Manager",
+            target="luxury concierge",
+            roles=ROLES,
+            snippet="Previously a luxury concierge at a five-star property.",
+            kind=TargetKind.PHRASE,
+        )
+        reason = " ".join(result.reasons)
+        assert "describe themselves" in reason
+        assert "former employer" not in reason
+        assert result.needs_review
+
+    def test_company_wording_is_unchanged_by_default(self) -> None:
+        """Existing briefs must read exactly as they did before phrases existed."""
+        result = score_prospect(
+            raw_title="Jane Doe - MICE Manager | LinkedIn",
+            name="Jane Doe",
+            headline="MICE Manager",
+            target="Dune & Palm Events",
+            roles=ROLES,
+            snippet="Previously at Dune & Palm Events",
+        )
+        assert "former employer" in " ".join(result.reasons)
+
+    def test_a_phrase_in_the_headline_clears_review(self) -> None:
+        result = score_prospect(
+            raw_title="Layla Haddad - Luxury Concierge & Villa Specialist | LinkedIn",
+            name="Layla Haddad",
+            headline="Luxury Concierge & Villa Specialist",
+            target="luxury concierge",
+            roles=ROLES,
+            kind=TargetKind.PHRASE,
+        )
+        assert not result.needs_review
+
+
+class TestExclusions:
+    """The veto that makes phrase targets usable at all."""
+
+    def test_an_excluded_term_vetoes_an_otherwise_perfect_row(self) -> None:
+        """The real defect this fixes: funeral celebrants scoring 1.00.
+
+        A recruiter advertising a role matches the phrase perfectly and passes
+        every other signal, so nothing short of a veto removes them.
+        """
+        common = {
+            "raw_title": "Tom Bexley - Recruiter hiring a Luxury Concierge - Talent Bay | LinkedIn",
+            "name": "Tom Bexley",
+            "headline": "Recruiter hiring a Luxury Concierge",
+            "target": "luxury concierge",
+            "roles": ROLES,
+            "kind": TargetKind.PHRASE,
+        }
+        without = score_prospect(**common)
+        with_veto = score_prospect(**common, exclude=("recruiter",))
+
+        assert not without.needs_review
+        assert with_veto.needs_review
+        # The veto flags without distorting the evidence: the score is unchanged.
+        assert with_veto.score == without.score
+        assert "excluded term 'recruiter'" in " ".join(with_veto.reasons)
+
+    def test_an_exclusion_matches_the_snippet_too(self) -> None:
+        result = score_prospect(
+            raw_title="Adam Nowak - Mistrz Ceremonii | LinkedIn",
+            name="Adam Nowak",
+            headline="Mistrz Ceremonii",
+            target="mistrz ceremonii",
+            roles=ROLES,
+            snippet="Mistrz ceremonii pogrzebowej, organista.",
+            kind=TargetKind.PHRASE,
+            exclude=("pogrzebowej",),
+        )
+        assert result.needs_review
+
+    def test_an_unmatched_exclusion_changes_nothing(self) -> None:
+        common = {
+            "raw_title": "Layla Haddad - Luxury Concierge | LinkedIn",
+            "name": "Layla Haddad",
+            "headline": "Luxury Concierge",
+            "target": "luxury concierge",
+            "roles": ROLES,
+            "kind": TargetKind.PHRASE,
+        }
+        assert score_prospect(**common, exclude=("recruiter",)) == score_prospect(**common)

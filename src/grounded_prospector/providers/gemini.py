@@ -25,7 +25,7 @@ from google import genai
 from grounded_prospector.infra.cache import Cache, NullCache, make_cache_key
 from grounded_prospector.infra.ratelimit import TokenBucket
 from grounded_prospector.infra.retry import Sleeper, retry_async
-from grounded_prospector.models import Agency
+from grounded_prospector.models import SearchTarget
 from grounded_prospector.providers._interaction import parse_interaction
 from grounded_prospector.providers.base import Capabilities, ProviderError, SearchResult
 from grounded_prospector.query import SYSTEM_INSTRUCTION, build_prompt
@@ -78,11 +78,11 @@ class GeminiGroundingProvider:
         self._sleeper = sleeper
         self._client = client if client is not None else genai.Client(api_key=api_key)
 
-    async def _create_interaction(self, query: str, agency: Agency) -> dict[str, Any]:
+    async def _create_interaction(self, query: str, target: SearchTarget) -> dict[str, Any]:
         """Call the API once and return the response as a plain dict."""
         response = await self._client.aio.interactions.create(
             model=self._model,
-            input=build_prompt(query, agency.name),
+            input=build_prompt(query, target.name, target.kind),
             system_instruction=SYSTEM_INSTRUCTION,
             tools=GOOGLE_SEARCH_TOOL,
             timeout=self._timeout_seconds,
@@ -99,7 +99,7 @@ class GeminiGroundingProvider:
         payload: dict[str, Any] = dump(mode="json", exclude_none=True)
         return payload
 
-    async def search(self, query: str, agency: Agency, *, page: int = 1) -> SearchResult:
+    async def search(self, query: str, target: SearchTarget, *, page: int = 1) -> SearchResult:
         """Run ``query`` through Google Search grounding and return cited sources.
 
         Grounding has no pagination, so any page beyond the first returns nothing
@@ -117,7 +117,7 @@ class GeminiGroundingProvider:
         if cached is not None:
             return parse_interaction(
                 json.loads(cached),
-                agency=agency,
+                target=target,
                 query=query,
                 provider=self.name,
                 retrieved_at=datetime.now(UTC),
@@ -128,7 +128,7 @@ class GeminiGroundingProvider:
             await self._bucket.acquire()
 
         payload = await retry_async(
-            lambda: self._create_interaction(query, agency),
+            lambda: self._create_interaction(query, target),
             max_retries=self._max_retries,
             sleeper=self._sleeper,
             on_retry=self._on_retry,
@@ -138,7 +138,7 @@ class GeminiGroundingProvider:
         # be replayed for the whole TTL.
         result = parse_interaction(
             payload,
-            agency=agency,
+            target=target,
             query=query,
             provider=self.name,
             retrieved_at=datetime.now(UTC),

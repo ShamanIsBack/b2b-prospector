@@ -22,7 +22,7 @@ from pathlib import Path
 from typing import Any
 
 from grounded_prospector.demo import DEMO_SERPER_RESPONSES
-from grounded_prospector.models import Agency, SearchHit
+from grounded_prospector.models import SearchHit, SearchTarget
 from grounded_prospector.providers._interaction import parse_interaction
 from grounded_prospector.providers.base import (
     Capabilities,
@@ -35,7 +35,7 @@ DEMO_TIMESTAMP = datetime(2026, 8, 10, 12, 0, 0, tzinfo=UTC)
 
 
 class FixtureProvider:
-    """Serves recorded payloads keyed by agency name, and by page within agency."""
+    """Serves recorded payloads keyed by target name, and by page within target."""
 
     name = "fixture"
     capabilities = Capabilities(
@@ -53,12 +53,12 @@ class FixtureProvider:
     ) -> None:
         """Load recorded payloads from ``path``.
 
-        The file maps an agency name either to a single payload, or to an object
+        The file maps an target name either to a single payload, or to an object
         keyed by page number for multi-page recordings.
 
         Args:
             path: JSON file of recorded responses.
-            strict: Raise on an agency with no recording, rather than returning
+            strict: Raise on an target with no recording, rather than returning
                 no results. Useful in tests, wrong for a demo run.
             retrieved_at: Timestamp stamped onto every replayed hit.
 
@@ -78,19 +78,19 @@ class FixtureProvider:
         if not isinstance(raw, dict):
             raise ProviderError(f"fixture file must contain a JSON object: {path}")
 
-        # Keys beginning with an underscore are documentation, not agencies.
+        # Keys beginning with an underscore are documentation, not targets.
         self._payloads: dict[str, Any] = {
             key: value for key, value in raw.items() if not key.startswith("_")
         }
 
     @property
-    def recorded_agencies(self) -> list[str]:
-        """Return the agency names this provider can answer for."""
+    def recorded_targets(self) -> list[str]:
+        """Return the target names this provider can answer for."""
         return sorted(self._payloads)
 
-    def _payload_for(self, agency: Agency, page: int) -> dict[str, Any] | None:
-        """Return the recording for one agency and page, if there is one."""
-        recorded = self._payloads.get(agency.name)
+    def _payload_for(self, target: SearchTarget, page: int) -> dict[str, Any] | None:
+        """Return the recording for one target and page, if there is one."""
+        recorded = self._payloads.get(target.name)
         if not isinstance(recorded, dict):
             return None
 
@@ -102,7 +102,7 @@ class FixtureProvider:
         return by_page if isinstance(by_page, dict) else None
 
     def _parse_serper(
-        self, payload: dict[str, Any], *, agency: Agency, query: str, page: int
+        self, payload: dict[str, Any], *, target: SearchTarget, query: str, page: int
     ) -> SearchResult:
         """Turn a recorded Serper payload into hits."""
         hits: list[SearchHit] = []
@@ -122,7 +122,7 @@ class FixtureProvider:
                     snippet=snippet.strip() if isinstance(snippet, str) else None,
                     position=position if isinstance(position, int) else None,
                     page=page,
-                    agency=agency.name,
+                    target=target.name,
                     query=query,
                     provider=self.name,
                     retrieved_at=self._retrieved_at,
@@ -130,31 +130,31 @@ class FixtureProvider:
             )
         return SearchResult(hits=hits, searches_billed=0)
 
-    async def search(self, query: str, agency: Agency, *, page: int = 1) -> SearchResult:
-        """Replay the recording for ``agency`` and ``page``.
+    async def search(self, query: str, target: SearchTarget, *, page: int = 1) -> SearchResult:
+        """Replay the recording for ``target`` and ``page``.
 
         Raises:
             ProviderError: in strict mode, if no recording exists for page 1.
         """
-        payload = self._payload_for(agency, page)
+        payload = self._payload_for(target, page)
         if payload is None:
             if self._strict and page == 1:
                 raise ProviderError(
-                    f"no recorded response for {agency.name!r}; "
-                    f"recorded: {', '.join(self.recorded_agencies) or 'none'}"
+                    f"no recorded response for {target.name!r}; "
+                    f"recorded: {', '.join(self.recorded_targets) or 'none'}"
                 )
             return SearchResult(hits=[], searches_billed=0, has_more=False)
 
         if "organic" in payload:
-            result = self._parse_serper(payload, agency=agency, query=query, page=page)
+            result = self._parse_serper(payload, target=target, query=query, page=page)
             # Truthful pagination without inventing a field Serper does not send:
             # there is more only if the recording actually holds a next page.
-            result.has_more = self._payload_for(agency, page + 1) is not None
+            result.has_more = self._payload_for(target, page + 1) is not None
             return result
 
         return parse_interaction(
             payload,
-            agency=agency,
+            target=target,
             query=query,
             provider=self.name,
             retrieved_at=self._retrieved_at,

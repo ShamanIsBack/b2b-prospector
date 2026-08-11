@@ -11,7 +11,7 @@ import httpx
 import pytest
 
 from grounded_prospector.infra.cache import SqliteCache
-from grounded_prospector.models import Agency
+from grounded_prospector.models import SearchTarget
 from grounded_prospector.providers.base import (
     ProviderAuthError,
     ProviderError,
@@ -21,7 +21,7 @@ from grounded_prospector.providers.serper import MAX_RESULTS_PER_PAGE, SerperPro
 
 from .conftest import FakeClock
 
-AGENCY = Agency(name="Dune & Palm Events", segment="mice")
+AGENCY = SearchTarget(name="Dune & Palm Events", segment="mice")
 
 
 def organic(count: int, *, start: int = 1) -> list[dict[str, Any]]:
@@ -135,7 +135,7 @@ class TestParsing:
         assert first.position == 1
         assert first.snippet is not None
         assert first.page == 2
-        assert first.agency == AGENCY.name
+        assert first.target == AGENCY.name
         assert first.provider == "serper"
         assert result.total_results == 17
 

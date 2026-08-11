@@ -6,10 +6,11 @@ from datetime import UTC, datetime
 
 import pytest
 
-from grounded_prospector.models import Agency, SearchBrief, SearchHit
+from grounded_prospector.models import SearchBrief, SearchHit, SearchTarget, TargetKind
 from grounded_prospector.pipeline import (
     PipelineOptions,
     QueryBudget,
+    exclusions_for,
     hits_to_prospects,
     plan_queries,
     run_pipeline,
@@ -19,20 +20,20 @@ from grounded_prospector.providers.fixture import FixtureProvider
 
 NOW = datetime(2026, 8, 10, tzinfo=UTC)
 
-TARGETS = SearchBrief(
+BRIEF = SearchBrief(
     location="Dubai",
     roles=["MICE", "Director"],
-    agencies=[Agency(name="Acme Events", segment="mice"), Agency(name="Beta Travel")],
+    targets=[SearchTarget(name="Acme Events", segment="mice"), SearchTarget(name="Beta Travel")],
 )
 
 
 def hit(
-    url: str, title: str, *, agency: str = "Acme Events", snippet: str | None = None
+    url: str, title: str, *, target: str = "Acme Events", snippet: str | None = None
 ) -> SearchHit:
     return SearchHit(
         url=url,
         title=title,
-        agency=agency,
+        target=target,
         query="q",
         provider="test",
         retrieved_at=NOW,
@@ -41,7 +42,7 @@ def hit(
 
 
 class ScriptedProvider:
-    """Returns a scripted page sequence per agency and records what was asked."""
+    """Returns a scripted page sequence per target and records what was asked."""
 
     name = "scripted"
 
@@ -60,12 +61,12 @@ class ScriptedProvider:
         self.requested: list[tuple[str, int]] = []
         self.closed = False
 
-    async def search(self, query: str, agency: Agency, *, page: int = 1) -> SearchResult:  # noqa: ARG002
-        self.requested.append((agency.name, page))
-        if self._fail_on == agency.name:
-            raise ProviderError(f"backend exploded for {agency.name}")
+    async def search(self, query: str, target: SearchTarget, *, page: int = 1) -> SearchResult:  # noqa: ARG002
+        self.requested.append((target.name, page))
+        if self._fail_on == target.name:
+            raise ProviderError(f"backend exploded for {target.name}")
 
-        pages = self._pages.get(agency.name, [])
+        pages = self._pages.get(target.name, [])
         hits = pages[page - 1] if 0 < page <= len(pages) else []
         return SearchResult(hits=hits, searches_billed=1, has_more=page < len(pages))
 
@@ -89,26 +90,26 @@ class TestQueryBudget:
 
 
 class TestPlanQueries:
-    def test_one_query_per_agency(self) -> None:
-        assert len(plan_queries(TARGETS)) == 2
+    def test_one_query_per_target(self) -> None:
+        assert len(plan_queries(BRIEF)) == 2
 
-    def test_query_mentions_agency_and_location(self) -> None:
-        _, query = plan_queries(TARGETS)[0]
+    def test_query_mentions_target_and_location(self) -> None:
+        _, query = plan_queries(BRIEF)[0]
         assert '"Acme Events"' in query
         assert '"Dubai"' in query
 
     def test_roles_from_the_brief_reach_the_query(self) -> None:
-        _, query = plan_queries(TARGETS)[0]
+        _, query = plan_queries(BRIEF)[0]
         assert '("MICE" OR "Director")' in query
 
     def test_keywords_from_the_brief_reach_the_query(self) -> None:
         """The wiring that was missing: the parameter existed but was never passed."""
-        brief = TARGETS.model_copy(update={"keywords": ["luxury", "eco"]})
+        brief = BRIEF.model_copy(update={"keywords": ["luxury", "eco"]})
         _, query = plan_queries(brief)[0]
         assert '("luxury" OR "eco")' in query
 
     def test_no_empty_group_when_keywords_are_omitted(self) -> None:
-        assert "()" not in plan_queries(TARGETS)[0][1]
+        assert "()" not in plan_queries(BRIEF)[0][1]
 
     def test_a_retargeted_brief_produces_a_wholly_different_query(self) -> None:
         """Changing country, sector and seniority is a single-file edit."""
@@ -117,7 +118,7 @@ class TestPlanQueries:
             country="pl",
             roles=["CTO"],
             keywords=["fintech"],
-            agencies=[Agency(name="Booksy")],
+            targets=[SearchTarget(name="Booksy")],
         )
         _, query = plan_queries(warsaw)[0]
         assert '"Warsaw"' in query
@@ -133,7 +134,7 @@ class TestHitsToProspects:
             hit("https://news.example/article", "Top 10 Agencies"),
             hit("https://www.linkedin.com/in/jane-doe", "Jane Doe - MICE Manager - Acme Events"),
         ]
-        assert len(hits_to_prospects(hits, TARGETS)) == 1
+        assert len(hits_to_prospects(hits, BRIEF)) == 1
 
     def test_the_same_person_across_domains_collapses_to_one(self) -> None:
         title = "Jane Doe - MICE Manager - Acme Events | LinkedIn"
@@ -141,7 +142,7 @@ class TestHitsToProspects:
             hit("https://ae.linkedin.com/in/jane-doe", title),
             hit("https://www.linkedin.com/in/Jane-Doe/?trk=x", title),
         ]
-        prospects = hits_to_prospects(hits, TARGETS)
+        prospects = hits_to_prospects(hits, BRIEF)
         assert len(prospects) == 1
         assert prospects[0].profile_url == "https://www.linkedin.com/in/jane-doe"
 
@@ -154,14 +155,14 @@ class TestHitsToProspects:
                 "Jane Doe - MICE Manager - Acme Events | LinkedIn",
             ),
         ]
-        prospects = hits_to_prospects(hits, TARGETS)
+        prospects = hits_to_prospects(hits, BRIEF)
         assert len(prospects) == 1
         assert prospects[0].confidence == 1.0
         assert prospects[0].headline == "MICE Manager"
 
     def test_segment_is_carried_over_from_the_target_list(self) -> None:
         hits = [hit("https://www.linkedin.com/in/j", "Jane Doe - MICE Manager - Acme Events")]
-        assert hits_to_prospects(hits, TARGETS)[0].segment == "mice"
+        assert hits_to_prospects(hits, BRIEF)[0].segment == "mice"
 
     def test_location_hint_comes_from_the_snippet(self) -> None:
         hits = [
@@ -171,18 +172,18 @@ class TestHitsToProspects:
                 snippet="Dubai, United Arab Emirates · MICE Manager · Acme Events",
             )
         ]
-        assert hits_to_prospects(hits, TARGETS)[0].location_hint == "Dubai, United Arab Emirates"
+        assert hits_to_prospects(hits, BRIEF)[0].location_hint == "Dubai, United Arab Emirates"
 
     def test_results_are_ordered_by_confidence(self) -> None:
         hits = [
             hit("https://www.linkedin.com/in/weak", "Someone Unknown | LinkedIn"),
             hit("https://www.linkedin.com/in/strong", "Jane Doe - MICE Manager - Acme Events"),
         ]
-        prospects = hits_to_prospects(hits, TARGETS)
+        prospects = hits_to_prospects(hits, BRIEF)
         assert prospects[0].confidence > prospects[1].confidence
 
     def test_empty_input_yields_no_prospects(self) -> None:
-        assert hits_to_prospects([], TARGETS) == []
+        assert hits_to_prospects([], BRIEF) == []
 
 
 class TestRunPipeline:
@@ -198,13 +199,13 @@ class TestRunPipeline:
                         hit(
                             "https://www.linkedin.com/in/c",
                             "C Person - Director - Beta Travel",
-                            agency="Beta Travel",
+                            target="Beta Travel",
                         )
                     ]
                 ],
             }
         )
-        prospects, report = await run_pipeline(TARGETS, provider, PipelineOptions(max_pages=5))
+        prospects, report = await run_pipeline(BRIEF, provider, PipelineOptions(max_pages=5))
 
         assert ("Acme Events", 2) in provider.requested
         assert ("Acme Events", 3) not in provider.requested, "must stop when has_more is False"
@@ -217,7 +218,7 @@ class TestRunPipeline:
             for i in range(5)
         ]
         provider = ScriptedProvider({"Acme Events": pages, "Beta Travel": []})
-        await run_pipeline(TARGETS, provider, PipelineOptions(max_pages=2))
+        await run_pipeline(BRIEF, provider, PipelineOptions(max_pages=2))
 
         acme_pages = [page for name, page in provider.requested if name == "Acme Events"]
         assert acme_pages == [1, 2]
@@ -232,12 +233,12 @@ class TestRunPipeline:
             },
             supports_pagination=False,
         )
-        await run_pipeline(TARGETS, provider, PipelineOptions(max_pages=5))
+        await run_pipeline(BRIEF, provider, PipelineOptions(max_pages=5))
         assert [p for n, p in provider.requested if n == "Acme Events"] == [1]
 
     async def test_an_empty_page_stops_pagination(self) -> None:
         provider = ScriptedProvider({"Acme Events": [], "Beta Travel": []})
-        await run_pipeline(TARGETS, provider, PipelineOptions(max_pages=4))
+        await run_pipeline(BRIEF, provider, PipelineOptions(max_pages=4))
         assert provider.requested.count(("Acme Events", 1)) == 1
         assert ("Acme Events", 2) not in provider.requested
 
@@ -248,14 +249,14 @@ class TestRunPipeline:
         ]
         provider = ScriptedProvider({"Acme Events": pages, "Beta Travel": pages})
         _, report = await run_pipeline(
-            TARGETS, provider, PipelineOptions(max_pages=10, max_queries=3, concurrency=1)
+            BRIEF, provider, PipelineOptions(max_pages=10, max_queries=3, concurrency=1)
         )
 
         assert len(provider.requested) == 3
         assert report.queries_executed == 3
         assert any("budget" in message for message in report.errors)
 
-    async def test_one_failing_agency_does_not_abort_the_run(self) -> None:
+    async def test_one_failing_target_does_not_abort_the_run(self) -> None:
         provider = ScriptedProvider(
             {
                 "Acme Events": [
@@ -264,7 +265,7 @@ class TestRunPipeline:
             },
             fail_on="Beta Travel",
         )
-        prospects, report = await run_pipeline(TARGETS, provider)
+        prospects, report = await run_pipeline(BRIEF, provider)
 
         assert len(prospects) == 1
         assert any("Beta Travel" in message for message in report.errors)
@@ -282,7 +283,7 @@ class TestRunPipeline:
                 "Beta Travel": [],
             }
         )
-        _, report = await run_pipeline(TARGETS, provider)
+        _, report = await run_pipeline(BRIEF, provider)
 
         assert report.hits_total == 3
         assert report.hits_linkedin == 1
@@ -293,10 +294,10 @@ class TestRunPipeline:
         targets = SearchBrief(
             location="Dubai",
             roles=["MICE", "Incentive", "Events", "Concierge", "Outbound", "Director"],
-            agencies=[
-                Agency(name="Dune & Palm Events", segment="mice"),
-                Agency(name="Falcon Bay Travel", segment="boutique"),
-                Agency(name="Majlis Concierge", segment="concierge"),
+            targets=[
+                SearchTarget(name="Dune & Palm Events", segment="mice"),
+                SearchTarget(name="Falcon Bay Travel", segment="boutique"),
+                SearchTarget(name="Majlis Concierge", segment="concierge"),
             ],
         )
         prospects, report = await run_pipeline(targets, FixtureProvider(), PipelineOptions())
@@ -308,8 +309,111 @@ class TestRunPipeline:
 
 
 @pytest.mark.parametrize("limit", [1, 2])
-async def test_report_counts_agencies_searched(limit: int) -> None:
-    targets = TARGETS.model_copy(update={"agencies": TARGETS.agencies[:limit]})
+async def test_report_counts_targets_searched(limit: int) -> None:
+    targets = BRIEF.model_copy(update={"targets": BRIEF.targets[:limit]})
     provider = ScriptedProvider({})
     _, report = await run_pipeline(targets, provider)
-    assert report.agencies_searched == limit
+    assert report.targets_searched == limit
+
+
+class TestExclusions:
+    """Brief-level and target-level exclusions combine rather than compete."""
+
+    def test_target_exclusions_add_to_brief_exclusions(self) -> None:
+        brief = BRIEF.model_copy(
+            update={
+                "exclude": ("pogrzeb",),
+                "targets": [SearchTarget(name="mistrz ceremonii", exclude=("wodzirej",))],
+            }
+        )
+        assert exclusions_for(brief, brief.targets[0]) == ("pogrzeb", "wodzirej")
+
+    def test_duplicates_are_dropped_but_order_is_kept(self) -> None:
+        """The result is interpolated into a query a human reads in --dry-run."""
+        brief = BRIEF.model_copy(
+            update={
+                "exclude": ("a", "b"),
+                "targets": [SearchTarget(name="x", exclude=("b", "c"))],
+            }
+        )
+        assert exclusions_for(brief, brief.targets[0]) == ("a", "b", "c")
+
+    def test_a_brief_exclusion_reaches_the_query(self) -> None:
+        brief = BRIEF.model_copy(update={"exclude": ("pogrzeb",)})
+        assert all('-"pogrzeb"' in query for _, query in plan_queries(brief))
+
+
+class TestTargetKindFlowsThrough:
+    def test_a_phrase_target_marks_its_prospects(self) -> None:
+        """Without this the CSV cannot tell the reader how to read `Target`."""
+        brief = BRIEF.model_copy(
+            update={"targets": [SearchTarget(name="konsultant ślubny", kind=TargetKind.PHRASE)]}
+        )
+        hits = [
+            hit(
+                "https://www.linkedin.com/in/anna-nowak",
+                "Anna Nowak - Konsultant ślubny | LinkedIn",
+                target="konsultant ślubny",
+            )
+        ]
+        prospects = hits_to_prospects(hits, brief)
+        assert [p.target_kind for p in prospects] == [TargetKind.PHRASE]
+
+    def test_an_unknown_target_falls_back_to_company(self) -> None:
+        """A hit whose target left the brief must not crash the run."""
+        hits = [hit("https://www.linkedin.com/in/x-y", "X Y - Manager", target="Gone Ltd")]
+        prospects = hits_to_prospects(hits, BRIEF)
+        assert [p.target_kind for p in prospects] == [TargetKind.COMPANY]
+
+
+class TestDedupePrefersActionableRows:
+    """Regression: an exclusion veto must not delete a usable contact."""
+
+    def test_a_vetoed_row_does_not_displace_a_clean_one(self) -> None:
+        """The veto raises no flag on the score, so ranking on score alone lost people.
+
+        The same person is found twice: once at their actual employer, once under
+        a phrase that also matches funeral celebrants. The vetoed row scores
+        higher, and before this was fixed it won and the person disappeared from
+        the contactable list entirely.
+        """
+        brief = BRIEF.model_copy(
+            update={
+                "roles": ["Mistrz Ceremonii"],
+                "targets": [
+                    SearchTarget(name="Lawendowy Ślub"),
+                    SearchTarget(
+                        name="mistrz ceremonii",
+                        kind=TargetKind.PHRASE,
+                        exclude=("pogrzeb",),
+                    ),
+                ],
+            }
+        )
+        url = "https://www.linkedin.com/in/jan-kowalski"
+        clean = hit(
+            url,
+            "Jan Kowalski - Koordynator Wesel - Lawendowy Ślub | LinkedIn",
+            target="Lawendowy Ślub",
+            snippet="Szczecin · Lawendowy Ślub",
+        )
+        vetoed = hit(
+            url,
+            "Jan Kowalski - Mistrz Ceremonii Pogrzebowej | LinkedIn",
+            target="mistrz ceremonii",
+            snippet="Mistrz ceremonii pogrzebowej",
+        )
+
+        for order in ([clean, vetoed], [vetoed, clean]):
+            (survivor,) = hits_to_prospects(order, brief)
+            assert survivor.target == "Lawendowy Ślub"
+            assert not survivor.needs_review
+
+    def test_among_equally_actionable_rows_confidence_still_wins(self) -> None:
+        """The original rule must survive: best evidence wins among usable rows."""
+        url = "https://www.linkedin.com/in/jane-doe"
+        weak = hit(url, "Jane Doe | LinkedIn", target="Acme Events")
+        strong = hit(url, "Jane Doe - MICE Director - Acme Events | LinkedIn", target="Acme Events")
+
+        (survivor,) = hits_to_prospects([weak, strong], BRIEF)
+        assert survivor.headline == "MICE Director"

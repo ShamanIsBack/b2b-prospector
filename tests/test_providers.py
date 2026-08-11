@@ -14,7 +14,7 @@ import pytest
 from grounded_prospector.demo import DEMO_INTERACTIONS, DEMO_SERPER_RESPONSES
 from grounded_prospector.infra.cache import SqliteCache
 from grounded_prospector.infra.ratelimit import TokenBucket
-from grounded_prospector.models import Agency
+from grounded_prospector.models import SearchTarget
 from grounded_prospector.providers._interaction import (
     executed_queries,
     model_notes,
@@ -27,7 +27,7 @@ from grounded_prospector.providers.gemini import GeminiGroundingProvider
 
 from .conftest import FakeClock
 
-AGENCY = Agency(name="Dune & Palm Events", segment="mice")
+AGENCY = SearchTarget(name="Dune & Palm Events", segment="mice")
 NOW = datetime(2026, 8, 10, tzinfo=UTC)
 
 
@@ -56,7 +56,7 @@ def citation(url: str, title: str = "T") -> dict[str, Any]:
 
 
 def parse(payload: dict[str, Any]) -> Any:
-    return parse_interaction(payload, agency=AGENCY, query="q", provider="test", retrieved_at=NOW)
+    return parse_interaction(payload, target=AGENCY, query="q", provider="test", retrieved_at=NOW)
 
 
 class TestParseInteraction:
@@ -64,10 +64,10 @@ class TestParseInteraction:
         result = parse(make_payload([citation("https://a.example", "A")]))
         assert [(h.url, h.title) for h in result.hits] == [("https://a.example", "A")]
 
-    def test_hits_carry_agency_query_and_provider(self) -> None:
+    def test_hits_carry_target_query_and_provider(self) -> None:
         result = parse(make_payload([citation("https://a.example")]))
         hit = result.hits[0]
-        assert (hit.agency, hit.query, hit.provider) == (AGENCY.name, "q", "test")
+        assert (hit.target, hit.query, hit.provider) == (AGENCY.name, "q", "test")
 
     def test_non_url_annotations_are_ignored(self) -> None:
         """Place and file citations share the annotation list but carry no page."""
@@ -174,17 +174,17 @@ class TestFixtureProvider:
         provider = FixtureProvider(DEMO_INTERACTIONS)
         assert (await provider.search("q", AGENCY, page=2)).hits == []
 
-    async def test_unknown_agency_returns_nothing_by_default(self) -> None:
-        result = await FixtureProvider().search("q", Agency(name="Nobody Ltd"))
+    async def test_unknown_target_returns_nothing_by_default(self) -> None:
+        result = await FixtureProvider().search("q", SearchTarget(name="Nobody Ltd"))
         assert result.hits == []
 
-    async def test_unknown_agency_raises_in_strict_mode(self) -> None:
+    async def test_unknown_target_raises_in_strict_mode(self) -> None:
         provider = FixtureProvider(strict=True)
         with pytest.raises(ProviderError, match="no recorded response"):
-            await provider.search("q", Agency(name="Nobody Ltd"))
+            await provider.search("q", SearchTarget(name="Nobody Ltd"))
 
-    def test_documentation_keys_are_not_agencies(self) -> None:
-        assert not any(name.startswith("_") for name in FixtureProvider().recorded_agencies)
+    def test_documentation_keys_are_not_targets(self) -> None:
+        assert not any(name.startswith("_") for name in FixtureProvider().recorded_targets)
 
     def test_missing_file_is_reported_clearly(self, tmp_path: Path) -> None:
         with pytest.raises(ProviderError, match="not found"):
@@ -202,10 +202,15 @@ class TestFixtureProvider:
         with pytest.raises(ProviderError, match="must contain a JSON object"):
             FixtureProvider(path)
 
-    def test_demo_file_covers_every_demo_agency(self) -> None:
-        """--demo must not silently return nothing for a listed agency."""
-        recorded = set(FixtureProvider().recorded_agencies)
-        assert recorded == {"Dune & Palm Events", "Falcon Bay Travel", "Majlis Concierge"}
+    def test_demo_file_covers_every_demo_target(self) -> None:
+        """--demo must not silently return nothing for a listed target."""
+        recorded = set(FixtureProvider().recorded_targets)
+        assert recorded == {
+            "Dune & Palm Events",
+            "Falcon Bay Travel",
+            "Majlis Concierge",
+            "luxury concierge",
+        }
 
 
 class FakeResponse:
@@ -382,6 +387,11 @@ def test_demo_fixtures_contain_no_real_linkedin_profiles(path: Path) -> None:
         "sara-okonkwo",
         "yusuf-demir",
         "elena-rossi",
+        # Phrase-target demo: a genuine self-description, a recruiter caught by
+        # an exclusion term, and someone the phrase matches only in the snippet.
+        "layla-haddad-concierge",
+        "tom-bexley",
+        "nadia-fahim",
     }
     text = path.read_text(encoding="utf-8")
     slugs = set(re.findall(r"linkedin\.com/in/([A-Za-z0-9\-]+)", text))

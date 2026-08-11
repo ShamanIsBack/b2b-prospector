@@ -82,12 +82,12 @@ class TestDemo:
         assert rows
         assert all(float(row["Confidence"]) >= 0.9 for row in rows)
 
-    def test_limit_restricts_the_agencies_searched(self, tmp_path: Path) -> None:
+    def test_limit_restricts_the_targets_searched(self, tmp_path: Path) -> None:
         out = tmp_path / "p.csv"
         runner.invoke(app, ["run", "--demo", "--limit", "1", "--out", str(out)])
 
         report = json.loads((out.parent / "run_report.json").read_text(encoding="utf-8"))
-        assert report["agencies_searched"] == 1
+        assert report["targets_searched"] == 1
 
 
 class TestDryRun:
@@ -139,7 +139,7 @@ roles: [CTO, Head of Engineering]
 keywords: [fintech, payments]
 max_pages: 2
 min_confidence: 0.9
-agencies:
+targets:
   - name: Booksy
     segment: saas
 """

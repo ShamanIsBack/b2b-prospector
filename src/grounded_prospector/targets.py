@@ -8,7 +8,7 @@ from typing import Any
 import yaml
 from pydantic import ValidationError
 
-from grounded_prospector.models import SearchBrief
+from grounded_prospector.models import SearchBrief, TargetKind
 
 DEFAULT_BRIEF_PATH = Path("search.yaml")
 
@@ -60,7 +60,38 @@ def load_brief(path: Path = DEFAULT_BRIEF_PATH) -> SearchBrief:
     except ValidationError as error:
         raise SearchBriefError(f"search brief is invalid: {path}\n{error}") from error
 
-    if not brief.agencies:
-        raise SearchBriefError(f"search brief contains no agencies: {path}")
+    if not brief.targets:
+        raise SearchBriefError(f"search brief contains no targets: {path}")
 
     return brief
+
+
+def lint_brief(brief: SearchBrief) -> list[str]:
+    """Return non-fatal warnings about a brief that is likely to waste money.
+
+    These are judgement calls rather than schema errors, so they never block a
+    run -- but each one below cost real credits to learn.
+    """
+    warnings: list[str] = []
+
+    # `country` biases ranking; it does not restrict language. A run for Polish
+    # wedding planners searching the English phrase "wedding planner" with
+    # country: pl returned ten American ones; the Polish-inflected "wedding
+    # plannerka" returned ten Polish ones. Where a language inflects, the local
+    # word form is a stronger geographic filter than any location phrase.
+    if brief.language != "en":
+        ascii_phrases = sorted(
+            target.name
+            for target in brief.targets
+            if target.kind is TargetKind.PHRASE and target.name.isascii()
+        )
+        if ascii_phrases:
+            listed = ", ".join(repr(name) for name in ascii_phrases)
+            warnings.append(
+                f"language is {brief.language!r} but these phrase targets are plain ASCII: "
+                f"{listed}. `country` biases ranking without restricting language, so an "
+                f"English phrase returns English-speaking results wherever they are. Prefer "
+                f"the local, inflected wording."
+            )
+
+    return warnings

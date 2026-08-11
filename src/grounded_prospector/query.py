@@ -1,6 +1,6 @@
 """Search query and prompt construction.
 
-Two strings are built per agency and they do different jobs:
+Two strings are built per target and they do different jobs:
 
 * :func:`build_xray_query` produces a literal Google search expression. It is the
   thing whose results we actually want.
@@ -14,6 +14,8 @@ never parsed — see :mod:`grounded_prospector.extract`.
 from __future__ import annotations
 
 from collections.abc import Sequence
+
+from grounded_prospector.models import TargetKind
 
 # Restricting to the member-profile path keeps company pages and job ads out of
 # the result set at the source, rather than filtering them afterwards.
@@ -36,36 +38,55 @@ SYSTEM_INSTRUCTION = (
 
 
 def build_xray_query(
-    agency: str,
+    target: str,
     location: str,
     roles: Sequence[str],
     keywords: Sequence[str] = (),
+    exclude: Sequence[str] = (),
 ) -> str:
-    """Build the literal Google search expression for one agency.
+    """Build the literal Google search expression for one target.
+
+    ``target`` is interpolated as a quoted phrase and nothing more. That is the
+    whole reason a job-title phrase works in the slot as readily as a company
+    name -- see :class:`grounded_prospector.models.TargetKind`.
 
     Terms are joined by spaces, which Google reads as AND -- equivalent to
     writing ``AND`` explicitly, and easier to read. Roles are OR-ed inside a
     single group so that widening the role list increases recall without costing
     additional queries.
+
+    ``exclude`` terms become negative terms. They are a cheap first filter, not a
+    guarantee: given a phrase with few matches a search engine loosens the query,
+    and the negative terms loosen with it. Scoring re-checks them for that reason.
     """
-    parts = [_SITE_FILTER, f'"{agency}"']
+    parts = [_SITE_FILTER, f'"{target}"']
     if location:
         parts.append(f'"{location}"')
     if roles:
         parts.append("(" + " OR ".join(f'"{role}"' for role in roles) + ")")
     if keywords:
         parts.append("(" + " OR ".join(f'"{keyword}"' for keyword in keywords) + ")")
+    parts.extend(f'-"{term}"' for term in exclude)
     parts.extend(_EXCLUSIONS)
     return " ".join(parts)
 
 
-def build_prompt(query: str, agency: str) -> str:
-    """Wrap a search expression in an instruction for the grounding model."""
+def build_prompt(query: str, target: str, kind: TargetKind = TargetKind.COMPANY) -> str:
+    """Wrap a search expression in an instruction for the grounding model.
+
+    The closing sentence has to match the kind of target. Telling the model it is
+    looking for "decision-makers at konsultant ślubny" describes an employer that
+    does not exist, and steers it toward inventing one.
+    """
+    goal = (
+        f"I am looking for people who describe themselves as {target!r}."
+        if kind is TargetKind.PHRASE
+        else f"I am looking for decision-makers at {target}."
+    )
     return (
         f"Run this exact Google search:\n\n{query}\n\n"
         f"List every LinkedIn profile that appears in the results, and cite each "
         f"one. For each person, report only their name and headline exactly as "
-        f"the search result shows them. I am looking for decision-makers at "
-        f"{agency}. Do not include anyone who does not appear in the search "
-        f"results, and do not describe people you cannot cite."
+        f"the search result shows them. {goal} Do not include anyone who does not "
+        f"appear in the search results, and do not describe people you cannot cite."
     )

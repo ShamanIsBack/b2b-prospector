@@ -24,7 +24,14 @@ from grounded_prospector.extract import (
     score_prospect,
     split_name,
 )
-from grounded_prospector.models import Agency, Prospect, RunReport, SearchBrief, SearchHit
+from grounded_prospector.models import (
+    Prospect,
+    RunReport,
+    SearchBrief,
+    SearchHit,
+    SearchTarget,
+    TargetKind,
+)
 from grounded_prospector.providers.base import ProviderError, SearchProvider
 from grounded_prospector.query import build_xray_query
 from grounded_prospector.urls import canonicalise_profile_url, dedupe_key
@@ -61,27 +68,27 @@ class QueryBudget:
         return self.spent >= self.limit
 
 
-async def _collect_agency(
+async def _collect_target(
     provider: SearchProvider,
-    agency: Agency,
+    target: SearchTarget,
     query: str,
     options: PipelineOptions,
     budget: QueryBudget,
     errors: list[str],
 ) -> tuple[list[SearchHit], int]:
-    """Page through one agency's results, returning its hits and billed searches."""
+    """Page through one target's results, returning its hits and billed searches."""
     hits: list[SearchHit] = []
     billed = 0
 
     for page in range(1, options.max_pages + 1):
         if not await budget.claim():
-            errors.append(f"query budget of {budget.limit} reached before finishing {agency.name}")
+            errors.append(f"query budget of {budget.limit} reached before finishing {target.name}")
             break
 
         try:
-            result = await provider.search(query, agency, page=page)
+            result = await provider.search(query, target, page=page)
         except ProviderError as error:
-            errors.append(f"{agency.name} (page {page}): {error}")
+            errors.append(f"{target.name} (page {page}): {error}")
             break
 
         hits.extend(result.hits)
@@ -97,6 +104,19 @@ async def _collect_agency(
     return hits, billed
 
 
+def _dedupe_rank(prospect: Prospect) -> tuple[int, float]:
+    """Rank two records of the same person: actionable first, then best evidence.
+
+    Confidence alone is not enough, because an exclusion veto deliberately does
+    *not* lower the score (the score describes the evidence, the flag describes
+    our judgement of it). Ranking on score alone therefore let a vetoed row at
+    1.00 displace a clean row at 0.85 for the same person, deleting a usable
+    contact: someone found both at their employer and under a phrase that
+    happened to match a funeral celebrant vanished from the contactable list.
+    """
+    return (0 if prospect.needs_review else 1, prospect.confidence)
+
+
 def hits_to_prospects(hits: Sequence[SearchHit], brief: SearchBrief) -> list[Prospect]:
     """Turn raw search hits into scored, deduplicated prospects.
 
@@ -104,10 +124,11 @@ def hits_to_prospects(hits: Sequence[SearchHit], brief: SearchBrief) -> list[Pro
     report can report honestly on how much of what we paid for was noise.
 
     When the same person appears more than once -- under a country subdomain, on
-    a later page, or from a different agency's query -- the highest-scoring
-    record wins, since that is the one with the most corroborating evidence.
+    a later page, or from a different target's query -- the record a human can
+    act on wins, and among equals the highest-scoring one; see
+    :func:`_dedupe_rank`.
     """
-    by_name = {agency.name: agency for agency in brief.agencies}
+    by_name = {target.name: target for target in brief.targets}
     best: dict[str, Prospect] = {}
 
     for hit in hits:
@@ -118,24 +139,33 @@ def hits_to_prospects(hits: Sequence[SearchHit], brief: SearchBrief) -> list[Pro
 
         parsed = parse_title(hit.title)
         first_name, last_name = split_name(parsed.name)
+
+        # A hit knows only the target's *text*. How to read that text -- employer
+        # or self-description -- lives on the brief, so it is looked up here
+        # rather than carried through the provider layer.
+        target = by_name.get(hit.target)
+        kind = target.kind if target else TargetKind.COMPANY
+
         confidence = score_prospect(
             raw_title=hit.title,
             name=parsed.name,
             headline=parsed.headline,
-            agency=hit.agency,
+            target=hit.target,
             roles=brief.roles,
             snippet=hit.snippet,
+            kind=kind,
+            exclude=exclusions_for(brief, target),
         )
 
-        agency = by_name.get(hit.agency)
         prospect = Prospect(
             first_name=first_name,
             last_name=last_name,
             headline=parsed.headline,
             company_from_title=parsed.company,
             profile_url=profile_url,
-            agency=hit.agency,
-            segment=agency.segment if agency else None,
+            target=hit.target,
+            target_kind=kind,
+            segment=target.segment if target else None,
             confidence=confidence.score,
             needs_review=confidence.needs_review,
             review_reasons=confidence.reasons,
@@ -149,20 +179,38 @@ def hits_to_prospects(hits: Sequence[SearchHit], brief: SearchBrief) -> list[Pro
         )
 
         existing = best.get(key)
-        if existing is None or prospect.confidence > existing.confidence:
+        if existing is None or _dedupe_rank(prospect) > _dedupe_rank(existing):
             best[key] = prospect
 
-    return sorted(best.values(), key=lambda p: (-p.confidence, p.agency, p.profile_url))
+    return sorted(best.values(), key=lambda p: (-p.confidence, p.target, p.profile_url))
 
 
-def plan_queries(brief: SearchBrief) -> list[tuple[Agency, str]]:
-    """Build the query for every agency, without issuing anything."""
+def exclusions_for(brief: SearchBrief, target: SearchTarget | None) -> tuple[str, ...]:
+    """Return the exclusion terms applying to one target.
+
+    Brief-level terms apply everywhere; a target's own terms are added to them
+    rather than replacing them, so a global rule cannot be lost by giving one
+    target a specific one. Order is preserved and duplicates dropped, because the
+    result is interpolated into a query a human will read.
+    """
+    combined = (*brief.exclude, *(target.exclude if target else ()))
+    return tuple(dict.fromkeys(combined))
+
+
+def plan_queries(brief: SearchBrief) -> list[tuple[SearchTarget, str]]:
+    """Build the query for every target, without issuing anything."""
     return [
         (
-            agency,
-            build_xray_query(agency.name, brief.location, brief.roles, brief.keywords),
+            target,
+            build_xray_query(
+                target.name,
+                brief.location,
+                brief.roles,
+                brief.keywords,
+                exclusions_for(brief, target),
+            ),
         )
-        for agency in brief.agencies
+        for target in brief.targets
     ]
 
 
@@ -171,7 +219,7 @@ async def run_pipeline(
     provider: SearchProvider,
     options: PipelineOptions | None = None,
 ) -> tuple[list[Prospect], RunReport]:
-    """Search for every agency in ``brief`` and return scored prospects.
+    """Search for every target in ``brief`` and return scored prospects.
 
     Returns:
         The deduplicated prospects, and a report of what the run cost and found.
@@ -183,11 +231,11 @@ async def run_pipeline(
     errors: list[str] = []
     semaphore = asyncio.Semaphore(options.concurrency)
 
-    async def worker(agency: Agency, query: str) -> tuple[list[SearchHit], int]:
+    async def worker(target: SearchTarget, query: str) -> tuple[list[SearchHit], int]:
         async with semaphore:
-            return await _collect_agency(provider, agency, query, options, budget, errors)
+            return await _collect_target(provider, target, query, options, budget, errors)
 
-    collected = await asyncio.gather(*(worker(agency, query) for agency, query in plan))
+    collected = await asyncio.gather(*(worker(target, query) for target, query in plan))
 
     all_hits = [hit for hits, _ in collected for hit in hits]
     billed = sum(count for _, count in collected)
@@ -198,7 +246,7 @@ async def run_pipeline(
         model=None,
         started_at=started_at,
         finished_at=datetime.now(UTC),
-        agencies_searched=len(plan),
+        targets_searched=len(plan),
         queries_planned=len(plan),
         queries_executed=budget.spent,
         searches_billed=billed,

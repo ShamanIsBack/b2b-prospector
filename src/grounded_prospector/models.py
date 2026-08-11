@@ -10,21 +10,65 @@ from the language model's prose.
 from __future__ import annotations
 
 from datetime import datetime
+from enum import StrEnum
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field
 
 # Below this score a prospect is flagged for human review before any outreach.
 CONFIDENCE_REVIEW_THRESHOLD = 0.60
 
 
-class Agency(BaseModel):
-    """A company we want to find decision-makers at."""
+class TargetKind(StrEnum):
+    """What the text in a target's ``name`` is meant to match.
+
+    The query builder treats both the same way -- a quoted phrase AND-ed into the
+    search expression. The difference is entirely one of *interpretation*, and it
+    changes what a match means (see
+    :func:`grounded_prospector.extract.score_prospect`):
+
+    ``COMPANY``
+        An employer. A match in the result title means "works here now", because
+        a LinkedIn profile title names the current employer.
+    ``PHRASE``
+        A self-description such as ``"konsultant ślubny"``. A match means "this is
+        how the person presents themselves" -- the more useful question when a
+        market is a long tail of sole traders with no company worth naming.
+    """
+
+    COMPANY = "company"
+    PHRASE = "phrase"
+
+
+class SearchTarget(BaseModel):
+    """One thing to search for: a company to staff-map, or a phrase to find.
+
+    This was called ``Agency`` until phrase targets arrived; the alias below is
+    kept so older imports go on working.
+    """
 
     model_config = ConfigDict(frozen=True)
 
     name: str
+    kind: TargetKind = TargetKind.COMPANY
     segment: str | None = None
     domain: str | None = None
+
+    # Terms that disqualify a result. Added to the query as negative terms *and*
+    # re-checked during scoring, because search engines honour negative terms
+    # unreliably on phrases with few matches -- which is exactly the kind of
+    # phrase this feature exists for. A tuple, not a list, so the model stays
+    # hashable while frozen.
+    #
+    # Matched as a *substring* of the normalised title and snippet, which is
+    # required rather than incidental: "pogrzeb" has to match the inflected
+    # "pogrzebowej", and token equality would miss it. The cost of that choice is
+    # that short terms match inside longer words -- "art" would match "smart" --
+    # so prefer a distinctive stem.
+    exclude: tuple[str, ...] = ()
+
+
+# Retained so `from grounded_prospector.models import Agency` keeps working.
+Agency = SearchTarget
 
 
 class SearchBrief(BaseModel):
@@ -40,13 +84,23 @@ class SearchBrief(BaseModel):
     return the wrong thing.
     """
 
+    model_config = ConfigDict(populate_by_name=True)
+
     # --- what to search for ---
     location: str
     country: str = "ae"
     language: str = "en"
     roles: list[str] = Field(default_factory=list)
     keywords: list[str] = Field(default_factory=list)
-    agencies: list[Agency]
+
+    # ``agencies:`` is the original spelling and still accepted; ``targets:`` is
+    # the honest one now that a target need not be a company.
+    targets: list[SearchTarget] = Field(
+        validation_alias=AliasChoices("targets", "agencies"),
+    )
+
+    # Applied to every target, on top of each target's own ``exclude``.
+    exclude: tuple[str, ...] = ()
 
     # --- how deep, and how strict ---
     max_pages: int = Field(default=3, ge=1)
@@ -69,7 +123,8 @@ class SearchHit(BaseModel):
 
     url: str
     title: str
-    agency: str
+    # The target this hit was searched for -- a company name or a phrase.
+    target: str
     query: str
     provider: str
     retrieved_at: datetime
@@ -93,7 +148,12 @@ class Prospect(BaseModel):
     company_from_title: str | None = None
 
     profile_url: str
-    agency: str
+
+    # What was searched for, and how to read it. For ``COMPANY`` targets
+    # ``target`` is an employer; for ``PHRASE`` targets it is the wording the
+    # person's own headline was matched against, so it must not be read as one.
+    target: str
+    target_kind: TargetKind = TargetKind.COMPANY
     segment: str | None = None
 
     confidence: float = Field(ge=0.0, le=1.0)
@@ -126,7 +186,7 @@ class RunReport(BaseModel):
     started_at: datetime
     finished_at: datetime
 
-    agencies_searched: int = 0
+    targets_searched: int = 0
     queries_planned: int = 0
 
     # Lookups attempted, including those served from cache. Drives the budget.

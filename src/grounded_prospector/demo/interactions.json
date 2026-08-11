@@ -72,7 +72,12 @@
       }
     ],
     "usage": {
-      "grounding_tool_count": [{ "type": "google_search", "count": 1 }],
+      "grounding_tool_count": [
+        {
+          "type": "google_search",
+          "count": 1
+        }
+      ],
       "total_input_tokens": 412,
       "total_output_tokens": 96,
       "total_tokens": 508
@@ -136,7 +141,12 @@
       }
     ],
     "usage": {
-      "grounding_tool_count": [{ "type": "google_search", "count": 2 }],
+      "grounding_tool_count": [
+        {
+          "type": "google_search",
+          "count": 2
+        }
+      ],
       "total_input_tokens": 405,
       "total_output_tokens": 71,
       "total_tokens": 476
@@ -193,10 +203,81 @@
       }
     ],
     "usage": {
-      "grounding_tool_count": [{ "type": "google_search", "count": 1 }],
+      "grounding_tool_count": [
+        {
+          "type": "google_search",
+          "count": 1
+        }
+      ],
       "total_input_tokens": 398,
       "total_output_tokens": 54,
       "total_tokens": 452
+    }
+  },
+  "luxury concierge": {
+    "id": "int_demo_phrase",
+    "status": "completed",
+    "model": "gemini-3.6-flash",
+    "steps": [
+      {
+        "type": "google_search_call",
+        "id": "call_demo_4",
+        "search_type": "web_search",
+        "arguments": {
+          "queries": [
+            "site:linkedin.com/in \"luxury concierge\" \"Dubai\" (\"MICE\" OR \"Incentive\" OR \"Events\" OR \"Concierge\" OR \"Outbound\" OR \"Director\" OR \"Head of\") -\"recruiter\""
+          ]
+        }
+      },
+      {
+        "type": "google_search_result",
+        "call_id": "call_demo_4",
+        "result": [
+          {
+            "search_suggestions": "<div class=\"gs-container\">Search suggestions rendering is required by the Grounding with Google Search terms of service.</div>"
+          }
+        ]
+      },
+      {
+        "type": "model_output",
+        "content": [
+          {
+            "type": "text",
+            "text": "Three profiles were returned; one belongs to a recruiter advertising the role rather than performing it.",
+            "annotations": [
+              {
+                "type": "url_citation",
+                "url": "https://ae.linkedin.com/in/layla-haddad",
+                "title": "Layla Haddad - Luxury Concierge & Private Villa Specialist | LinkedIn",
+                "start_index": 6,
+                "end_index": 14
+              },
+              {
+                "type": "url_citation",
+                "url": "https://www.linkedin.com/in/tom-bexley",
+                "title": "Tom Bexley - Recruiter hiring a Luxury Concierge - Talent Bay | LinkedIn",
+                "start_index": 20,
+                "end_index": 28
+              },
+              {
+                "type": "url_citation",
+                "url": "https://www.linkedin.com/in/nadia-fahim",
+                "title": "Nadia Fahim - Guest Relations Manager - Sandline Hotels | LinkedIn",
+                "start_index": 34,
+                "end_index": 42
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "usage": {
+      "grounding_tool_count": [
+        {
+          "type": "google_search",
+          "count": 1
+        }
+      ]
     }
   }
 }

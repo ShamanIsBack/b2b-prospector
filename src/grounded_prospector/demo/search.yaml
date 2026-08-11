@@ -1,5 +1,5 @@
 # Search brief used by `grounded-prospector run --demo`.
-# These agencies are fictional; see demo/__init__.py.
+# These companies and people are fictional; see demo/__init__.py.
 location: Dubai
 country: ae
 language: en
@@ -14,10 +14,18 @@ roles:
 keywords: []
 max_pages: 3
 min_confidence: 0.0
-agencies:
+targets:
   - name: Dune & Palm Events
     segment: mice
   - name: Falcon Bay Travel
     segment: boutique
   - name: Majlis Concierge
     segment: concierge
+
+  # A phrase rather than a company, so --demo exercises both kinds. The
+  # exclusion keeps out recruiters advertising the role rather than doing it.
+  - name: luxury concierge
+    kind: phrase
+    segment: self-described
+    exclude:
+      - recruiter

@@ -22,7 +22,7 @@ import httpx
 from grounded_prospector.infra.cache import Cache, NullCache, make_cache_key
 from grounded_prospector.infra.ratelimit import TokenBucket
 from grounded_prospector.infra.retry import Sleeper, retry_async
-from grounded_prospector.models import Agency, SearchHit
+from grounded_prospector.models import SearchHit, SearchTarget
 from grounded_prospector.providers.base import (
     Capabilities,
     ProviderAuthError,
@@ -204,7 +204,7 @@ class SerperProvider:
         return payload
 
     def _to_hits(
-        self, payload: dict[str, Any], *, agency: Agency, query: str, page: int
+        self, payload: dict[str, Any], *, target: SearchTarget, query: str, page: int
     ) -> list[SearchHit]:
         """Map Serper's ``organic`` array onto search hits."""
         organic = payload.get("organic")
@@ -230,7 +230,7 @@ class SerperProvider:
                     snippet=snippet.strip() if isinstance(snippet, str) else None,
                     position=position if isinstance(position, int) else None,
                     page=page,
-                    agency=agency.name,
+                    target=target.name,
                     query=query,
                     provider=self.name,
                     retrieved_at=retrieved_at,
@@ -239,10 +239,10 @@ class SerperProvider:
         return hits
 
     def _result(
-        self, payload: dict[str, Any], *, agency: Agency, query: str, page: int, cached: bool
+        self, payload: dict[str, Any], *, target: SearchTarget, query: str, page: int, cached: bool
     ) -> SearchResult:
         """Assemble a :class:`SearchResult` from a decoded Serper payload."""
-        hits = self._to_hits(payload, agency=agency, query=query, page=page)
+        hits = self._to_hits(payload, target=target, query=query, page=page)
         search_info = payload.get("searchInformation")
         total = None
         if isinstance(search_info, dict):
@@ -266,7 +266,7 @@ class SerperProvider:
             has_more=len(hits) >= (self._results_per_page or ASSUMED_PAGE_SIZE),
         )
 
-    async def search(self, query: str, agency: Agency, *, page: int = 1) -> SearchResult:
+    async def search(self, query: str, target: SearchTarget, *, page: int = 1) -> SearchResult:
         """Fetch one page of organic results for ``query``.
 
         Raises:
@@ -280,7 +280,7 @@ class SerperProvider:
         cached = self._cache.get(cache_key)
         if cached is not None:
             return self._result(
-                json.loads(cached), agency=agency, query=query, page=page, cached=True
+                json.loads(cached), target=target, query=query, page=page, cached=True
             )
 
         if self._bucket is not None:
@@ -293,7 +293,7 @@ class SerperProvider:
             on_retry=self._on_retry,
         )
 
-        result = self._result(payload, agency=agency, query=query, page=page, cached=False)
+        result = self._result(payload, target=target, query=query, page=page, cached=False)
         self._cache.put(cache_key, json.dumps(payload, ensure_ascii=False))
         return result
 

@@ -32,7 +32,12 @@ from grounded_prospector.providers.base import ProviderError, SearchProvider
 from grounded_prospector.providers.fixture import FixtureProvider
 from grounded_prospector.providers.gemini import GeminiGroundingProvider
 from grounded_prospector.providers.serper import SerperProvider
-from grounded_prospector.targets import DEFAULT_BRIEF_PATH, SearchBriefError, load_brief
+from grounded_prospector.targets import (
+    DEFAULT_BRIEF_PATH,
+    SearchBriefError,
+    lint_brief,
+    load_brief,
+)
 
 app = typer.Typer(
     add_completion=False,
@@ -111,7 +116,7 @@ def _summary_table(report: RunReport, output: Path | None) -> Table:
     table.add_column("")
 
     table.add_row("Provider", report.provider)
-    table.add_row("Agencies searched", str(report.agencies_searched))
+    table.add_row("Targets searched", str(report.targets_searched))
     table.add_row(
         "Queries",
         f"{report.queries_executed} attempted, {report.searches_billed} billed",
@@ -145,7 +150,7 @@ def _preview_table(prospects: list[Prospect], limit: int = 10) -> Table:
     table = Table(title=f"Top {min(limit, len(prospects))} prospects", title_style="bold")
     table.add_column("Name")
     table.add_column("Headline", max_width=40)
-    table.add_column("Agency")
+    table.add_column("Target")
     table.add_column("Conf", justify="right")
     table.add_column("Review", justify="center")
 
@@ -153,7 +158,7 @@ def _preview_table(prospects: list[Prospect], limit: int = 10) -> Table:
         table.add_row(
             prospect.full_name or "[dim]-[/dim]",
             prospect.headline or "[dim]-[/dim]",
-            prospect.agency,
+            prospect.target,
             f"{prospect.confidence:.2f}",
             "[yellow]yes[/yellow]" if prospect.needs_review else "[green]no[/green]",
         )
@@ -168,7 +173,7 @@ def _load(search: Path | None, demo: bool) -> SearchBrief:
     """
     path = DEMO_BRIEF if demo and search is None else (search or DEFAULT_BRIEF_PATH)
     try:
-        return load_brief(path)
+        brief = load_brief(path)
     except SearchBriefError as error:
         # A fresh clone has no search.yaml, and this is the first thing such a
         # user hits -- so point at the two ways forward rather than just failing.
@@ -179,6 +184,12 @@ def _load(search: Path | None, demo: bool) -> SearchBrief:
             else ""
         )
         raise typer.BadParameter(f"{error}{hint}") from error
+
+    for warning in lint_brief(brief):
+        # Printed, never raised: these describe a perfectly valid brief that is
+        # probably not what the operator meant, and they may have good reason.
+        console.print(f"[yellow]warning:[/yellow] {warning}\n")
+    return brief
 
 
 @app.command()
@@ -201,10 +212,10 @@ def run(
         bool, typer.Option("--dry-run", help="Print the planned queries and cost, call nothing.")
     ] = False,
     pages: Annotated[
-        int | None, typer.Option("--pages", help="Maximum result pages per agency.")
+        int | None, typer.Option("--pages", help="Maximum result pages per target.")
     ] = None,
     limit: Annotated[
-        int | None, typer.Option("--limit", "-n", help="Only search the first N agencies.")
+        int | None, typer.Option("--limit", "-n", help="Only search the first N targets.")
     ] = None,
     max_queries: Annotated[
         int | None, typer.Option("--max-queries", help="Hard ceiling on queries for this run.")
@@ -227,7 +238,7 @@ def run(
 
     brief = _load(search, demo)
     if limit is not None:
-        brief = brief.model_copy(update={"agencies": brief.agencies[:limit]})
+        brief = brief.model_copy(update={"targets": brief.targets[:limit]})
 
     # Precedence throughout: an explicit CLI flag beats the brief, which beats
     # the built-in default. A `None` here means the flag was not given at all.
@@ -303,15 +314,15 @@ def _show_plan(brief: SearchBrief, provider: str, options: PipelineOptions) -> N
 
     table = Table(title="Planned queries", title_style="bold")
     table.add_column("#", justify="right", style="dim")
-    table.add_column("Agency")
+    table.add_column("Target")
     table.add_column("Query", overflow="fold")
-    for index, (agency, query) in enumerate(plan, start=1):
-        table.add_row(str(index), agency.name, query)
+    for index, (target, query) in enumerate(plan, start=1):
+        table.add_row(str(index), target.name, query)
     console.print(table)
 
     rate = _usd_per_1k(provider)
     console.print(
-        f"\n[bold]{len(plan)}[/bold] agencies x up to [bold]{options.max_pages}[/bold] pages "
+        f"\n[bold]{len(plan)}[/bold] targets x up to [bold]{options.max_pages}[/bold] pages "
         f"= at most [bold]{worst_case}[/bold] queries "
         f"(budget {options.max_queries}), "
         f"about [bold]${worst_case * rate / 1000:.3f}[/bold] on {provider} at list price.\n"

@@ -1,7 +1,7 @@
 """On-disk response cache.
 
 Re-running a prospecting run is normal: you widen the role list, fix a typo in an
-agency name, or just want the CSV again. Against a metered API each of those
+target name, or just want the CSV again. Against a metered API each of those
 re-runs would otherwise cost real quota, so identical queries are served from
 SQLite until their entry expires.
 

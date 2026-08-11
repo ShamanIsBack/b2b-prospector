@@ -53,13 +53,33 @@ max_pages: 3
 # what you want on a first pass. Override for one run with --min-confidence.
 min_confidence: 0.0
 
+# Terms that disqualify a result, applied to every target below. They become
+# negative search terms AND are re-checked when scoring, because a search engine
+# honours negative terms unreliably on phrases with few matches. Leave empty
+# unless you have seen the noise you are excluding.
+exclude: []
+
 # ---------------------------------------------------------------------------
 # Who to search for
 # ---------------------------------------------------------------------------
 # `name` is used as a quoted phrase in the query and matched against result
 # titles and snippets. `segment` is a free-text label copied to the CSV.
+#
+# `kind` decides how a match is read, and defaults to `company`:
+#
+#   company  an employer. A match in the result title means "works here now",
+#            because that is what a LinkedIn profile title states.
+#   phrase   a self-description such as "konsultant slubny". A match means
+#            "this is how the person presents themselves" -- the more useful
+#            question when the market is a long tail of sole traders with no
+#            company worth naming. See docs/DECISIONS.md, ADR-009.
+#
+# Phrase targets need the LOCAL wording. `country` biases ranking but does not
+# restrict language: the English "wedding planner" with country: pl returns
+# American planners, while the Polish "wedding plannerka" returns Polish ones.
+# The tool warns about this at load time.
 
-agencies:
+targets:
   # --- Boutique & bespoke travel ---
   - name: Falcon Bay Travel
     segment: boutique
@@ -93,3 +113,13 @@ agencies:
     segment: concierge
   - name: Palm Atrium Concierge
     segment: concierge
+
+  # --- Phrase targets: find a category, not a company ---
+  # Commented out because this example brief targets named Dubai companies.
+  # Uncomment to see the other mode.
+  #
+  # - name: luxury concierge
+  #   kind: phrase
+  #   segment: self-described
+  #   exclude:
+  #     - recruiter        # people hiring for the role, not doing it

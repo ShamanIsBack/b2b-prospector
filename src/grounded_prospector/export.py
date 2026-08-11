@@ -22,7 +22,11 @@ EVIDENCE_COLUMNS = [
     "Last name",
     "Headline",
     "Company from title",
-    "Target agency",
+    "Target",
+    # Tells the reader how to interpret "Target": an employer, or wording that
+    # the person's own headline was matched against. Without this column a
+    # phrase row reads as a company that does not exist.
+    "Match type",
     "Segment",
     "LinkedIn URL",
     "Location hint",
@@ -57,7 +61,8 @@ def _row(prospect: Prospect) -> dict[str, str]:
         "Last name": prospect.last_name or "",
         "Headline": prospect.headline or "",
         "Company from title": prospect.company_from_title or "",
-        "Target agency": prospect.agency,
+        "Target": prospect.target,
+        "Match type": prospect.target_kind.value,
         "Segment": prospect.segment or "",
         "LinkedIn URL": prospect.profile_url,
         "Location hint": prospect.location_hint or "",

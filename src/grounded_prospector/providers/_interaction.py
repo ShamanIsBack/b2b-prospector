@@ -11,7 +11,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from grounded_prospector.models import Agency, SearchHit
+from grounded_prospector.models import SearchHit, SearchTarget
 from grounded_prospector.providers.base import ProviderError, SearchResult
 
 _STEP_SEARCH_CALL = "google_search_call"
@@ -89,7 +89,7 @@ def model_notes(payload: dict[str, Any]) -> str | None:
 def parse_interaction(
     payload: dict[str, Any],
     *,
-    agency: Agency,
+    target: SearchTarget,
     query: str,
     provider: str,
     retrieved_at: datetime,
@@ -127,7 +127,7 @@ def parse_interaction(
                     SearchHit(
                         url=url.strip(),
                         title=title.strip() if isinstance(title, str) else "",
-                        agency=agency.name,
+                        target=target.name,
                         query=query,
                         provider=provider,
                         retrieved_at=retrieved_at,

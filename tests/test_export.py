@@ -8,7 +8,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from grounded_prospector.export import CRM_COLUMNS, CSV_COLUMNS, write_csv, write_json, write_report
-from grounded_prospector.models import Prospect, RunReport
+from grounded_prospector.models import Prospect, RunReport, TargetKind
 
 NOW = datetime(2026, 8, 10, 12, 0, tzinfo=UTC)
 
@@ -19,7 +19,7 @@ def prospect(**overrides: object) -> Prospect:
         "last_name": "Kowalska",
         "headline": "MICE Manager",
         "profile_url": "https://www.linkedin.com/in/jana-kowalska",
-        "agency": "Acme Events",
+        "target": "Acme Events",
         "segment": "mice",
         "confidence": 0.85,
         "needs_review": False,
@@ -115,3 +115,17 @@ class TestWriteReport:
         report = RunReport(provider="fixture", model=None, started_at=NOW, finished_at=NOW)
         payload = json.loads(write_report(report, tmp_path / "r.json").read_text(encoding="utf-8"))
         assert payload["cache_hit_rate"] == 0.0
+
+
+def test_match_type_tells_the_reader_how_to_read_the_target_column(tmp_path: Path) -> None:
+    """Without this column a phrase row reads as a company that does not exist."""
+    path = write_csv(
+        [
+            prospect(target="Acme Events"),
+            prospect(target="konsultant ślubny", target_kind=TargetKind.PHRASE),
+        ],
+        tmp_path / "out.csv",
+    )
+    rows = list(csv.DictReader(path.open(encoding="utf-8-sig")))
+    assert [row["Match type"] for row in rows] == ["company", "phrase"]
+    assert [row["Target"] for row in rows] == ["Acme Events", "konsultant ślubny"]

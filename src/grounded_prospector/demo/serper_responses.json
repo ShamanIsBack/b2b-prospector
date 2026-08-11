@@ -2,7 +2,9 @@
   "_comment": "Fabricated Serper-shaped responses. No real people or companies. See demo/__init__.py. Recordings are keyed by agency, then by page number.",
   "Dune & Palm Events": {
     "1": {
-      "searchInformation": { "totalResults": 14 },
+      "searchInformation": {
+        "totalResults": 14
+      },
       "organic": [
         {
           "position": 1,
@@ -37,7 +39,9 @@
       ]
     },
     "2": {
-      "searchInformation": { "totalResults": 14 },
+      "searchInformation": {
+        "totalResults": 14
+      },
       "organic": [
         {
           "position": 1,
@@ -56,7 +60,9 @@
   },
   "Falcon Bay Travel": {
     "1": {
-      "searchInformation": { "totalResults": 6 },
+      "searchInformation": {
+        "totalResults": 6
+      },
       "organic": [
         {
           "position": 1,
@@ -81,7 +87,9 @@
   },
   "Majlis Concierge": {
     "1": {
-      "searchInformation": { "totalResults": 3 },
+      "searchInformation": {
+        "totalResults": 3
+      },
       "organic": [
         {
           "position": 1,
@@ -94,6 +102,33 @@
           "title": "Elena Rossi | LinkedIn",
           "link": "https://www.linkedin.com/in/elena-rossi",
           "snippet": "Dubai · 500+ connections · View Elena Rossi's profile on LinkedIn."
+        }
+      ]
+    }
+  },
+  "luxury concierge": {
+    "1": {
+      "searchInformation": {
+        "totalResults": 3
+      },
+      "organic": [
+        {
+          "position": 1,
+          "title": "Layla Haddad - Luxury Concierge & Private Villa Specialist | LinkedIn",
+          "link": "https://ae.linkedin.com/in/layla-haddad-concierge",
+          "snippet": "Dubai, United Arab Emirates · Luxury Concierge & Private Villa Specialist · Independent."
+        },
+        {
+          "position": 2,
+          "title": "Tom Bexley - Recruiter hiring a Luxury Concierge - Talent Bay | LinkedIn",
+          "link": "https://www.linkedin.com/in/tom-bexley",
+          "snippet": "London, United Kingdom · Recruiter · Hiring a Luxury Concierge for a Gulf-based family office."
+        },
+        {
+          "position": 3,
+          "title": "Nadia Fahim - Guest Relations Manager - Sandline Hotels | LinkedIn",
+          "link": "https://www.linkedin.com/in/nadia-fahim",
+          "snippet": "Dubai · Guest Relations Manager · Previously a luxury concierge at a five-star property."
         }
       ]
     }

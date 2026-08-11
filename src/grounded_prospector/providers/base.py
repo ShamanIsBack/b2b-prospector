@@ -18,7 +18,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Protocol, runtime_checkable
 
-from grounded_prospector.models import Agency, SearchHit
+from grounded_prospector.models import SearchHit, SearchTarget
 
 
 class ProviderError(RuntimeError):
@@ -86,12 +86,12 @@ class SearchProvider(Protocol):
     name: str
     capabilities: Capabilities
 
-    async def search(self, query: str, agency: Agency, *, page: int = 1) -> SearchResult:
+    async def search(self, query: str, target: SearchTarget, *, page: int = 1) -> SearchResult:
         """Run ``query`` and return the sources found for it.
 
         Args:
             query: The literal search expression to run.
-            agency: The target the query was built for, echoed onto each hit.
+            target: The target the query was built for, echoed onto each hit.
             page: 1-based page number. Backends without pagination support must
                 return an empty result for any page beyond the first rather than
                 silently repeating page one.
