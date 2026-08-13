@@ -10,28 +10,28 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from grounded_prospector import __version__
-from grounded_prospector.config import (
+from b2b_prospector import __version__
+from b2b_prospector.config import (
     GEMINI_USD_PER_1K_GROUNDED_SEARCHES,
     SERPER_USD_PER_1K_QUERIES,
     Settings,
 )
-from grounded_prospector.demo import DEMO_BRIEF
-from grounded_prospector.export import write_csv, write_json, write_report
-from grounded_prospector.infra.cache import Cache, NullCache, SqliteCache
-from grounded_prospector.infra.logging import setup_logging
-from grounded_prospector.infra.ratelimit import TokenBucket
-from grounded_prospector.models import Prospect, RunReport, SearchBrief
-from grounded_prospector.pipeline import (
+from b2b_prospector.demo import DEMO_BRIEF
+from b2b_prospector.export import write_csv, write_json, write_report
+from b2b_prospector.infra.cache import Cache, NullCache, SqliteCache
+from b2b_prospector.infra.logging import setup_logging
+from b2b_prospector.infra.ratelimit import TokenBucket
+from b2b_prospector.models import Prospect, RunReport, SearchBrief
+from b2b_prospector.pipeline import (
     PipelineOptions,
     plan_queries,
     run_pipeline,
 )
-from grounded_prospector.providers.base import ProviderError, SearchProvider
-from grounded_prospector.providers.fixture import FixtureProvider
-from grounded_prospector.providers.gemini import GeminiGroundingProvider
-from grounded_prospector.providers.serper import SerperProvider
-from grounded_prospector.targets import (
+from b2b_prospector.providers.base import ProviderError, SearchProvider
+from b2b_prospector.providers.fixture import FixtureProvider
+from b2b_prospector.providers.gemini import GeminiGroundingProvider
+from b2b_prospector.providers.serper import SerperProvider
+from b2b_prospector.targets import (
     DEFAULT_BRIEF_PATH,
     SearchBriefError,
     lint_brief,
@@ -377,7 +377,7 @@ def providers() -> None:
 @app.command()
 def version() -> None:
     """Print the installed version."""
-    console.print(f"grounded-prospector {__version__}")
+    console.print(f"b2b-prospector {__version__}")
 
 
 if __name__ == "__main__":  # pragma: no cover

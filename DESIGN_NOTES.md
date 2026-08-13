@@ -39,11 +39,12 @@ The second constraint is the harder one, and it is the reason for most of what f
 
 The Gemini demotion is worth dwelling on, because it is the one that was decided properly.
 
-Grounding was the original design — it is where the project's name comes from. The objection
-raised against it was that it cannot paginate. Rather than argue from documentation prose, the
-response API's own types were inspected in the installed SDK: `GoogleSearchResult` exposes
-`search_suggestions` and nothing else. There is no result list, no `page`, no offset. The model
-cites a handful of sources it chose; you cannot walk a result set that is never exposed.
+Grounding was the original design, and the project was called `grounded-prospector` for it.
+The objection raised against it was that it cannot paginate. Rather than argue from
+documentation prose, the response API's own types were inspected in the installed SDK:
+`GoogleSearchResult` exposes `search_suggestions` and nothing else. There is no result list, no
+`page`, no offset. The model cites a handful of sources it chose; you cannot walk a result set
+that is never exposed.
 
 That is a structural fact, not a limitation to work around, and it settled the question in
 minutes. **Check the object, not the docs** — documentation describes intent, the type
@@ -126,7 +127,7 @@ you wrote. Only reading the output tells you whether what you wrote was worth do
 ### 2. Configuration moved out of the environment — because a knob was unreachable
 
 Search settings had scattered across three places: a YAML file, environment variables
-(`GP_COUNTRY`, `GP_MAX_PAGES`), and CLI flags. Retargeting the tool at a different country
+(`BP_COUNTRY`, `BP_MAX_PAGES`), and CLI flags. Retargeting the tool at a different country
 meant remembering that `gl=ae` was set in `.env`.
 
 Worse, `keywords` was reachable from nowhere at all. `build_xray_query()` accepted the

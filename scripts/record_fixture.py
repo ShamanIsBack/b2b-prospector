@@ -1,9 +1,9 @@
 """Record one real Gemini grounding response, and print its shape.
 
-This is a tool for working *on* :mod:`grounded_prospector.providers._interaction`,
+This is a tool for working *on* :mod:`b2b_prospector.providers._interaction`,
 not a part of the test suite. Nothing in the repository reads the file it writes:
 the provider tests build their payloads inline, and ``--demo`` replays the
-fabricated recordings in ``src/grounded_prospector/demo/``. Reach for it when a
+fabricated recordings in ``src/b2b_prospector/demo/``. Reach for it when a
 change to the parser needs checking against what the API actually returns, rather
 than against the documentation's description of it.
 
@@ -33,8 +33,8 @@ from typing import Any
 
 from google import genai
 
-from grounded_prospector.config import Settings
-from grounded_prospector.query import SYSTEM_INSTRUCTION, build_prompt, build_xray_query
+from b2b_prospector.config import Settings
+from b2b_prospector.query import SYSTEM_INSTRUCTION, build_prompt, build_xray_query
 
 FIXTURE_PATH = Path(__file__).resolve().parents[1] / "tests" / "fixtures"
 DEFAULT_AGENCY = "Dune & Palm Events"

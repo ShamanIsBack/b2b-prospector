@@ -18,7 +18,7 @@ cp search.example.yaml search.yaml  # your targets
 Check it works without spending anything:
 
 ```bash
-grounded-prospector run --demo      # full pipeline, bundled data, no API key
+b2b-prospector run --demo      # full pipeline, bundled data, no API key
 ```
 
 ---
@@ -31,7 +31,7 @@ whole project — it showed the geographic filter, not the role filter, was supp
 and it found a company name that was simply wrong.
 
 ```bash
-grounded-prospector run --dry-run   # see every query and the worst-case cost, send nothing
+b2b-prospector run --dry-run   # see every query and the worst-case cost, send nothing
 ```
 
 Then sanity-check two or three companies by hand. Paste one of the printed queries straight
@@ -61,7 +61,7 @@ better recall *and* a better confidence signal. Widen before you consider anythi
 ## 3. Run the campaign
 
 ```bash
-grounded-prospector run --max-queries 100 --out out/campaign.csv
+b2b-prospector run --max-queries 100 --out out/campaign.csv
 ```
 
 `--max-queries` must exceed `targets x max_pages` or the run stops early and says so. The
@@ -127,7 +127,7 @@ point of shipping the evidence alongside the claim.
 Raw API responses are cached, so **re-running the same brief costs nothing**:
 
 ```bash
-grounded-prospector run --max-queries 100 --out out/campaign.csv   # 100% cache hits, $0.000
+b2b-prospector run --max-queries 100 --out out/campaign.csv   # 100% cache hits, $0.000
 ```
 
 This means scoring and filtering are free to iterate on after the data is collected. Changing
@@ -157,7 +157,7 @@ targets:
 ```
 
 ```bash
-grounded-prospector run --search warsaw.yaml --dry-run   # always dry-run a new brief first
+b2b-prospector run --search warsaw.yaml --dry-run   # always dry-run a new brief first
 ```
 
 Nothing about the search lives in `.env`. If you find yourself editing environment variables to

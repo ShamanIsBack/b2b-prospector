@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from grounded_prospector.models import TargetKind
-from grounded_prospector.query import build_prompt, build_xray_query
+from b2b_prospector.models import TargetKind
+from b2b_prospector.query import build_prompt, build_xray_query
 
 ROLES = ["MICE", "Director"]
 

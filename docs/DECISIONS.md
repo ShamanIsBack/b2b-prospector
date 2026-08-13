@@ -297,7 +297,7 @@ setting to change.
 ### Consequences
 
 The default configuration now works on the free plan, which is what the README promises any
-reader can do. Paid users set `GP_RESULTS_PER_PAGE=100` and get the same results in fewer
+reader can do. Paid users set `BP_RESULTS_PER_PAGE=100` and get the same results in fewer
 billed queries.
 
 The wider lesson is about testing: a mock transport proves the code handles the response
@@ -321,8 +321,8 @@ places, and one setting could not be reached at all:
 | Setting | Where it lived | Why that was wrong |
 |---|---|---|
 | `location`, `roles`, `agencies` | `agencies.yaml` | fine |
-| `country`, `language` | `GP_COUNTRY`, `GP_LANGUAGE` | These decide *which* results a search engine returns. A Warsaw search silently kept `gl=ae` unless you knew to look in `.env`. |
-| `max_pages` | `GP_MAX_PAGES` | Search depth, split from the rest of the brief |
+| `country`, `language` | `BP_COUNTRY`, `BP_LANGUAGE` | These decide *which* results a search engine returns. A Warsaw search silently kept `gl=ae` unless you knew to look in `.env`. |
+| `max_pages` | `BP_MAX_PAGES` | Search depth, split from the rest of the brief |
 | `min_confidence` | CLI flag only | Could not be saved with a campaign at all |
 | `keywords` | nowhere | `build_xray_query()` accepted the parameter, the model had no field, and the pipeline never passed it. A passing unit test covered it — which is precisely how dead code survives review. |
 

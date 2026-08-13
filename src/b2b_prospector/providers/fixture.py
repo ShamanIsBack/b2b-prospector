@@ -21,10 +21,10 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from grounded_prospector.demo import DEMO_SERPER_RESPONSES
-from grounded_prospector.models import SearchHit, SearchTarget
-from grounded_prospector.providers._interaction import parse_interaction
-from grounded_prospector.providers.base import (
+from b2b_prospector.demo import DEMO_SERPER_RESPONSES
+from b2b_prospector.models import SearchHit, SearchTarget
+from b2b_prospector.providers._interaction import parse_interaction
+from b2b_prospector.providers.base import (
     Capabilities,
     ProviderError,
     SearchResult,

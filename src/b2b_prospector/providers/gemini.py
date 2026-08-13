@@ -22,13 +22,13 @@ from typing import Any
 
 from google import genai
 
-from grounded_prospector.infra.cache import Cache, NullCache, make_cache_key
-from grounded_prospector.infra.ratelimit import TokenBucket
-from grounded_prospector.infra.retry import Sleeper, retry_async
-from grounded_prospector.models import SearchTarget
-from grounded_prospector.providers._interaction import parse_interaction
-from grounded_prospector.providers.base import Capabilities, ProviderError, SearchResult
-from grounded_prospector.query import SYSTEM_INSTRUCTION, build_prompt
+from b2b_prospector.infra.cache import Cache, NullCache, make_cache_key
+from b2b_prospector.infra.ratelimit import TokenBucket
+from b2b_prospector.infra.retry import Sleeper, retry_async
+from b2b_prospector.models import SearchTarget
+from b2b_prospector.providers._interaction import parse_interaction
+from b2b_prospector.providers.base import Capabilities, ProviderError, SearchResult
+from b2b_prospector.query import SYSTEM_INSTRUCTION, build_prompt
 
 GOOGLE_SEARCH_TOOL: list[dict[str, str]] = [{"type": "google_search"}]
 

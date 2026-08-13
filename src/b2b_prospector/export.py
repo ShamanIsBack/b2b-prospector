@@ -14,7 +14,7 @@ import json
 from collections.abc import Sequence
 from pathlib import Path
 
-from grounded_prospector.models import Prospect, RunReport
+from b2b_prospector.models import Prospect, RunReport
 
 # Filled in by this tool.
 EVIDENCE_COLUMNS = [

@@ -6,7 +6,7 @@ a grounding-style backend structurally cannot offer — see ``docs/DECISIONS.md`
 ADR-006 for the comparison that put this one first.
 
 Nothing here interprets results. Titles and snippets are passed through verbatim
-for :mod:`grounded_prospector.extract` to parse deterministically.
+for :mod:`b2b_prospector.extract` to parse deterministically.
 """
 
 from __future__ import annotations
@@ -19,11 +19,11 @@ from typing import Any
 
 import httpx
 
-from grounded_prospector.infra.cache import Cache, NullCache, make_cache_key
-from grounded_prospector.infra.ratelimit import TokenBucket
-from grounded_prospector.infra.retry import Sleeper, retry_async
-from grounded_prospector.models import SearchHit, SearchTarget
-from grounded_prospector.providers.base import (
+from b2b_prospector.infra.cache import Cache, NullCache, make_cache_key
+from b2b_prospector.infra.ratelimit import TokenBucket
+from b2b_prospector.infra.retry import Sleeper, retry_async
+from b2b_prospector.models import SearchHit, SearchTarget
+from b2b_prospector.providers.base import (
     Capabilities,
     ProviderAuthError,
     ProviderError,
@@ -157,7 +157,7 @@ class SerperProvider:
             return (
                 f"\nThis usually means num={self._results_per_page} is too high for a free "
                 f"Serper plan when the query uses search operators. Free accounts allow at "
-                f"most {FREE_TIER_MAX_RESULTS_PER_PAGE}; unset GP_RESULTS_PER_PAGE to let "
+                f"most {FREE_TIER_MAX_RESULTS_PER_PAGE}; unset BP_RESULTS_PER_PAGE to let "
                 f"the API choose, and use --pages to fetch more."
             )
         return ""

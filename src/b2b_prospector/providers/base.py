@@ -3,7 +3,7 @@
 A provider's job is narrow on purpose: given a query and a page number, return
 the sources a search engine reported for it. Providers do not parse names, score
 relevance or deduplicate — that work is deterministic and lives in
-:mod:`grounded_prospector.extract`, so it stays identical no matter which backend
+:mod:`b2b_prospector.extract`, so it stays identical no matter which backend
 produced the results.
 
 Backends differ in what they can do, and the pipeline must not pretend otherwise.
@@ -18,7 +18,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Protocol, runtime_checkable
 
-from grounded_prospector.models import SearchHit, SearchTarget
+from b2b_prospector.models import SearchHit, SearchTarget
 
 
 class ProviderError(RuntimeError):

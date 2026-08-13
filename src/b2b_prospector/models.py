@@ -24,7 +24,7 @@ class TargetKind(StrEnum):
     The query builder treats both the same way -- a quoted phrase AND-ed into the
     search expression. The difference is entirely one of *interpretation*, and it
     changes what a match means (see
-    :func:`grounded_prospector.extract.score_prospect`):
+    :func:`b2b_prospector.extract.score_prospect`):
 
     ``COMPANY``
         An employer. A match in the result title means "works here now", because
@@ -67,7 +67,7 @@ class SearchTarget(BaseModel):
     exclude: tuple[str, ...] = ()
 
 
-# Retained so `from grounded_prospector.models import Agency` keeps working.
+# Retained so `from b2b_prospector.models import Agency` keeps working.
 Agency = SearchTarget
 
 
@@ -76,7 +76,7 @@ class SearchBrief(BaseModel):
 
     This is the single place a search is retargeted from. Anything describing
     *what* to look for or *how hard* to look belongs here; API keys and
-    infrastructure live in the environment (see :mod:`grounded_prospector.config`).
+    infrastructure live in the environment (see :mod:`b2b_prospector.config`).
 
     The ``country``/``language`` defaults are inherited from the project's
     original Dubai use case. They bias which results the search engine returns,

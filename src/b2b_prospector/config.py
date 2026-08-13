@@ -28,16 +28,16 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
-        env_prefix="GP_",
+        env_prefix="BP_",
         extra="ignore",
     )
 
-    # Read without the GP_ prefix so each matches the name its own vendor uses.
+    # Read without the BP_ prefix so each matches the name its own vendor uses.
     serper_api_key: SecretStr | None = Field(default=None, validation_alias="SERPER_API_KEY")
     gemini_api_key: SecretStr | None = Field(default=None, validation_alias="GEMINI_API_KEY")
 
     provider: str = Field(default=DEFAULT_PROVIDER)
-    gemini_model: str = Field(default=DEFAULT_MODEL, validation_alias="GP_MODEL")
+    gemini_model: str = Field(default=DEFAULT_MODEL, validation_alias="BP_MODEL")
 
     # A runaway loop against a metered API is the expensive failure mode, so the
     # ceiling is configuration rather than something a caller can forget to pass.

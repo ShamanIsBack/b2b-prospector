@@ -1,6 +1,6 @@
-# grounded-prospector
+# b2b-prospector
 
-[![CI](https://github.com/ShamanIsBack/grounded-prospector/actions/workflows/ci.yml/badge.svg)](https://github.com/ShamanIsBack/grounded-prospector/actions/workflows/ci.yml)
+[![CI](https://github.com/ShamanIsBack/b2b-prospector/actions/workflows/ci.yml/badge.svg)](https://github.com/ShamanIsBack/b2b-prospector/actions/workflows/ci.yml)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
 [![Checked with mypy](https://img.shields.io/badge/mypy-strict-blue.svg)](https://mypy-lang.org/)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
@@ -14,7 +14,7 @@ queries, runs them through a search API, and returns a scored, deduplicated CSV 
 profiles, each carrying the raw title, snippet and query it was derived from.
 
 ```console
-$ grounded-prospector run --demo
+$ b2b-prospector run --demo
                                         Top 10 prospects
 ┌─────────────────────────────┬────────────────────────────────────┬───────────────────┬──────┬────────┐
 │ Name                        │ Headline                           │ Target            │ Conf │ Review │
@@ -39,12 +39,12 @@ only in the snippet is flagged; a consultant with no company match in the title 
 ## Quickstart — no API key needed
 
 ```bash
-git clone https://github.com/ShamanIsBack/grounded-prospector
-cd grounded-prospector
+git clone https://github.com/ShamanIsBack/b2b-prospector
+cd b2b-prospector
 python -m venv .venv && .venv/Scripts/activate   # or source .venv/bin/activate
 pip install -e ".[dev]"
 
-grounded-prospector run --demo
+b2b-prospector run --demo
 ```
 
 `--demo` replays bundled fixtures, so the full pipeline — pagination, deduplication, scoring,
@@ -57,8 +57,8 @@ acceptance test, not a convenience: if the demo ever needs a key, the project ha
 cp .env.example .env          # paste a key from https://serper.dev (2,500 free, no card)
 cp search.example.yaml search.yaml
 
-grounded-prospector run --dry-run     # see every query and the cost, send nothing
-grounded-prospector run               # write out/prospects.csv
+b2b-prospector run --dry-run     # see every query and the cost, send nothing
+b2b-prospector run               # write out/prospects.csv
 ```
 
 ## How it works
@@ -193,7 +193,7 @@ targets:
 ```
 
 ```bash
-grounded-prospector run --search warsaw.yaml --dry-run   # check the queries, spend nothing
+b2b-prospector run --search warsaw.yaml --dry-run   # check the queries, spend nothing
 ```
 
 `--pages` and `--min-confidence` override the brief for a single run; the brief overrides the
@@ -208,11 +208,11 @@ history, process listings and CI logs.
 |---|---|---|
 | `SERPER_API_KEY` | – | Serper.dev key |
 | `GEMINI_API_KEY` | – | Gemini key, for `--provider gemini` |
-| `GP_MAX_QUERIES` | `50` | Hard ceiling per run; an account-level guard, not part of a search |
-| `GP_RESULTS_PER_PAGE` | *unset* | Serper page size. **Leave unset on a free plan** — see below |
-| `GP_CONCURRENCY` | `3` | Simultaneous in-flight searches |
-| `GP_RATE_LIMIT_PER_MINUTE` | `30` | Token-bucket pacing |
-| `GP_CACHE_TTL_HOURS` | `168` | Response cache lifetime |
+| `BP_MAX_QUERIES` | `50` | Hard ceiling per run; an account-level guard, not part of a search |
+| `BP_RESULTS_PER_PAGE` | *unset* | Serper page size. **Leave unset on a free plan** — see below |
+| `BP_CONCURRENCY` | `3` | Simultaneous in-flight searches |
+| `BP_RATE_LIMIT_PER_MINUTE` | `30` | Token-bucket pacing |
+| `BP_CACHE_TTL_HOURS` | `168` | Response cache lifetime |
 
 Responses are cached in SQLite keyed by provider, page size, country, language, query and page
 number, so re-running a refined search costs nothing for the parts that did not change.
@@ -221,7 +221,7 @@ number, so re-running a refined search costs nothing for the parts that did not 
 > operators — which every X-ray query does — with
 > `400 Query pattern not allowed for free accounts`. So `num` is not sent by default and Google
 > picks the page size (~10 results). `page` is unaffected, so use `--pages` to fetch more. On a
-> paid plan, set `GP_RESULTS_PER_PAGE=100` to get the same results in fewer billed queries.
+> paid plan, set `BP_RESULTS_PER_PAGE=100` to get the same results in fewer billed queries.
 
 ## Output
 
@@ -253,7 +253,7 @@ Filling them with guesses would invite someone to email an unverified address.
 | Key | `SERPER_API_KEY` | `GEMINI_API_KEY` | none |
 
 ```bash
-grounded-prospector providers      # print this table live
+b2b-prospector providers      # print this table live
 ```
 
 Gemini grounding was the original design and was demoted to secondary after measurement, not

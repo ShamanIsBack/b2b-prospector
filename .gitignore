@@ -20,7 +20,7 @@ tests/fixtures/
 
 # --- Cache ----------------------------------------------------------------
 .cache/
-.grounded_prospector_cache/
+.b2b_prospector_cache/
 
 # --- Python ---------------------------------------------------------------
 __pycache__/

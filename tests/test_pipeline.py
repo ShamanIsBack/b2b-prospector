@@ -6,8 +6,8 @@ from datetime import UTC, datetime
 
 import pytest
 
-from grounded_prospector.models import SearchBrief, SearchHit, SearchTarget, TargetKind
-from grounded_prospector.pipeline import (
+from b2b_prospector.models import SearchBrief, SearchHit, SearchTarget, TargetKind
+from b2b_prospector.pipeline import (
     PipelineOptions,
     QueryBudget,
     exclusions_for,
@@ -15,13 +15,13 @@ from grounded_prospector.pipeline import (
     plan_queries,
     run_pipeline,
 )
-from grounded_prospector.providers.base import (
+from b2b_prospector.providers.base import (
     Capabilities,
     ProviderAuthError,
     ProviderError,
     SearchResult,
 )
-from grounded_prospector.providers.fixture import FixtureProvider
+from b2b_prospector.providers.fixture import FixtureProvider
 
 NOW = datetime(2026, 8, 10, tzinfo=UTC)
 

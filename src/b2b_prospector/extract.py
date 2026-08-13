@@ -22,7 +22,7 @@ import unicodedata
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 
-from grounded_prospector.models import CONFIDENCE_REVIEW_THRESHOLD, TargetKind
+from b2b_prospector.models import CONFIDENCE_REVIEW_THRESHOLD, TargetKind
 
 # Separators between name / headline / company. Surrounding whitespace is required
 # so that hyphenated names ("Anne-Marie") and companies ("Al-Futtaim") survive.

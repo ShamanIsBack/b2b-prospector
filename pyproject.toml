@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "grounded-prospector"
+name = "b2b-prospector"
 version = "0.1.0"
 description = "Find B2B decision-makers from public search results, without scraping."
 readme = "README.md"
@@ -42,14 +42,14 @@ dev = [
 ]
 
 [project.scripts]
-grounded-prospector = "grounded_prospector.cli:app"
+b2b-prospector = "b2b_prospector.cli:app"
 
 [project.urls]
-Homepage = "https://github.com/ShamanIsBack/grounded-prospector"
-Issues = "https://github.com/ShamanIsBack/grounded-prospector/issues"
+Homepage = "https://github.com/ShamanIsBack/b2b-prospector"
+Issues = "https://github.com/ShamanIsBack/b2b-prospector/issues"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/grounded_prospector"]
+packages = ["src/b2b_prospector"]
 
 # ---------------------------------------------------------------------------
 # Tooling
@@ -141,7 +141,7 @@ addopts = [
 ]
 
 [tool.coverage.run]
-source = ["src/grounded_prospector"]
+source = ["src/b2b_prospector"]
 branch = true
 
 [tool.coverage.report]

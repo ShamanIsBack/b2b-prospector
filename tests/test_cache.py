@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from grounded_prospector.infra.cache import NullCache, SqliteCache, make_cache_key
+from b2b_prospector.infra.cache import NullCache, SqliteCache, make_cache_key
 
 from .conftest import FakeClock
 

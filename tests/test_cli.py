@@ -14,13 +14,13 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-import grounded_prospector.cli
-from grounded_prospector.cli import _build_provider, app
-from grounded_prospector.config import Settings
-from grounded_prospector.infra.cache import NullCache
-from grounded_prospector.models import SearchTarget
-from grounded_prospector.providers.base import Capabilities, ProviderAuthError, SearchResult
-from grounded_prospector.targets import load_brief
+import b2b_prospector.cli
+from b2b_prospector.cli import _build_provider, app
+from b2b_prospector.config import Settings
+from b2b_prospector.infra.cache import NullCache
+from b2b_prospector.models import SearchTarget
+from b2b_prospector.providers.base import Capabilities, ProviderAuthError, SearchResult
+from b2b_prospector.targets import load_brief
 
 runner = CliRunner()
 
@@ -28,9 +28,9 @@ runner = CliRunner()
 @pytest.fixture(autouse=True)
 def _no_credentials(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """Remove every API key and isolate the cache and working directory."""
-    for name in ("SERPER_API_KEY", "GEMINI_API_KEY", "GP_CACHE_DIR"):
+    for name in ("SERPER_API_KEY", "GEMINI_API_KEY", "BP_CACHE_DIR"):
         monkeypatch.delenv(name, raising=False)
-    monkeypatch.setenv("GP_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.setenv("BP_CACHE_DIR", str(tmp_path / "cache"))
     monkeypatch.chdir(tmp_path)
 
 
@@ -170,7 +170,7 @@ class TestRejectedCredentials:
             encoding="utf-8",
         )
         backend = RejectedKeyBackend()
-        monkeypatch.setattr(grounded_prospector.cli, "_build_provider", lambda *_args: backend)
+        monkeypatch.setattr(b2b_prospector.cli, "_build_provider", lambda *_args: backend)
 
         out = tmp_path / "p.csv"
         result = runner.invoke(app, ["run", "--out", str(out)])
@@ -262,7 +262,7 @@ class TestOtherCommands:
     def test_version_prints_the_package_version(self) -> None:
         result = runner.invoke(app, ["version"])
         assert result.exit_code == 0
-        assert "grounded-prospector" in result.output
+        assert "b2b-prospector" in result.output
 
     def test_no_arguments_shows_help(self) -> None:
         result = runner.invoke(app, [])

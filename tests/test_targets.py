@@ -6,9 +6,9 @@ from pathlib import Path
 
 import pytest
 
-from grounded_prospector.demo import DEMO_BRIEF
-from grounded_prospector.models import TargetKind
-from grounded_prospector.targets import SearchBriefError, lint_brief, load_brief
+from b2b_prospector.demo import DEMO_BRIEF
+from b2b_prospector.models import TargetKind
+from b2b_prospector.targets import SearchBriefError, lint_brief, load_brief
 
 VALID = """
 location: Dubai

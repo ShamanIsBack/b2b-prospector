@@ -4,14 +4,14 @@ from __future__ import annotations
 
 import pytest
 
-from grounded_prospector.extract import (
+from b2b_prospector.extract import (
     extract_location_hint,
     is_plausible_person_name,
     parse_title,
     score_prospect,
     split_name,
 )
-from grounded_prospector.models import (
+from b2b_prospector.models import (
     TargetKind,
 )
 

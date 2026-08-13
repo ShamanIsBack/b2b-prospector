@@ -8,7 +8,7 @@ from typing import Any
 import yaml
 from pydantic import ValidationError
 
-from grounded_prospector.models import SearchBrief, TargetKind
+from b2b_prospector.models import SearchBrief, TargetKind
 
 DEFAULT_BRIEF_PATH = Path("search.yaml")
 

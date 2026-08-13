@@ -7,8 +7,8 @@ import json
 from datetime import UTC, datetime
 from pathlib import Path
 
-from grounded_prospector.export import CRM_COLUMNS, CSV_COLUMNS, write_csv, write_json, write_report
-from grounded_prospector.models import Prospect, RunReport, TargetKind
+from b2b_prospector.export import CRM_COLUMNS, CSV_COLUMNS, write_csv, write_json, write_report
+from b2b_prospector.models import Prospect, RunReport, TargetKind
 
 NOW = datetime(2026, 8, 10, 12, 0, tzinfo=UTC)
 

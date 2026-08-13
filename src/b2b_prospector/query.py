@@ -8,14 +8,14 @@ Two strings are built per target and they do different jobs:
   to run it and cite what it finds.
 
 The prompt exists only to steer *which pages get cited*. Its prose answer is
-never parsed — see :mod:`grounded_prospector.extract`.
+never parsed — see :mod:`b2b_prospector.extract`.
 """
 
 from __future__ import annotations
 
 from collections.abc import Sequence
 
-from grounded_prospector.models import TargetKind
+from b2b_prospector.models import TargetKind
 
 # Restricting to the member-profile path keeps company pages and job ads out of
 # the result set at the source, rather than filtering them afterwards.
@@ -48,7 +48,7 @@ def build_xray_query(
 
     ``target`` is interpolated as a quoted phrase and nothing more. That is the
     whole reason a job-title phrase works in the slot as readily as a company
-    name -- see :class:`grounded_prospector.models.TargetKind`.
+    name -- see :class:`b2b_prospector.models.TargetKind`.
 
     Terms are joined by spaces, which Google reads as AND -- equivalent to
     writing ``AND`` explicitly, and easier to read. Roles are OR-ed inside a

@@ -11,19 +11,19 @@ from typing import Any
 
 import pytest
 
-from grounded_prospector.demo import DEMO_INTERACTIONS, DEMO_SERPER_RESPONSES
-from grounded_prospector.infra.cache import SqliteCache
-from grounded_prospector.infra.ratelimit import TokenBucket
-from grounded_prospector.models import SearchTarget
-from grounded_prospector.providers._interaction import (
+from b2b_prospector.demo import DEMO_INTERACTIONS, DEMO_SERPER_RESPONSES
+from b2b_prospector.infra.cache import SqliteCache
+from b2b_prospector.infra.ratelimit import TokenBucket
+from b2b_prospector.models import SearchTarget
+from b2b_prospector.providers._interaction import (
     executed_queries,
     model_notes,
     parse_interaction,
     searches_billed,
 )
-from grounded_prospector.providers.base import ProviderError, SearchProvider
-from grounded_prospector.providers.fixture import FixtureProvider
-from grounded_prospector.providers.gemini import GeminiGroundingProvider
+from b2b_prospector.providers.base import ProviderError, SearchProvider
+from b2b_prospector.providers.fixture import FixtureProvider
+from b2b_prospector.providers.gemini import GeminiGroundingProvider
 
 from .conftest import FakeClock
 

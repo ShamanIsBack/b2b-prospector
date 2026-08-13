@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from grounded_prospector.infra.ratelimit import TokenBucket
+from b2b_prospector.infra.ratelimit import TokenBucket
 
 from .conftest import FakeClock
 

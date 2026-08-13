@@ -10,14 +10,14 @@ from typing import Any
 import httpx
 import pytest
 
-from grounded_prospector.infra.cache import SqliteCache
-from grounded_prospector.models import SearchTarget
-from grounded_prospector.providers.base import (
+from b2b_prospector.infra.cache import SqliteCache
+from b2b_prospector.models import SearchTarget
+from b2b_prospector.providers.base import (
     ProviderAuthError,
     ProviderError,
     SearchProvider,
 )
-from grounded_prospector.providers.serper import MAX_RESULTS_PER_PAGE, SerperProvider
+from b2b_prospector.providers.serper import MAX_RESULTS_PER_PAGE, SerperProvider
 
 from .conftest import FakeClock
 
@@ -230,7 +230,7 @@ class TestErrorHandling:
         )
         provider = make_provider(recorder, results_per_page=100, sleeper=clock.sleep)
 
-        with pytest.raises(ProviderError, match="GP_RESULTS_PER_PAGE"):
+        with pytest.raises(ProviderError, match="BP_RESULTS_PER_PAGE"):
             await provider.search("q", AGENCY)
 
     async def test_non_json_error_body_still_produces_a_message(self, clock: FakeClock) -> None:

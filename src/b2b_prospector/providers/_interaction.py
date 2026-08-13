@@ -11,8 +11,8 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from grounded_prospector.models import SearchHit, SearchTarget
-from grounded_prospector.providers.base import ProviderError, SearchResult
+from b2b_prospector.models import SearchHit, SearchTarget
+from b2b_prospector.providers.base import ProviderError, SearchResult
 
 _STEP_SEARCH_CALL = "google_search_call"
 _STEP_MODEL_OUTPUT = "model_output"

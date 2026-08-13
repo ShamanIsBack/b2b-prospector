@@ -18,13 +18,13 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
-from grounded_prospector.extract import (
+from b2b_prospector.extract import (
     extract_location_hint,
     parse_title,
     score_prospect,
     split_name,
 )
-from grounded_prospector.models import (
+from b2b_prospector.models import (
     Prospect,
     RunReport,
     SearchBrief,
@@ -32,13 +32,13 @@ from grounded_prospector.models import (
     SearchTarget,
     TargetKind,
 )
-from grounded_prospector.providers.base import (
+from b2b_prospector.providers.base import (
     ProviderAuthError,
     ProviderError,
     SearchProvider,
 )
-from grounded_prospector.query import build_xray_query
-from grounded_prospector.urls import canonicalise_profile_url, dedupe_key
+from b2b_prospector.query import build_xray_query
+from b2b_prospector.urls import canonicalise_profile_url, dedupe_key
 
 
 @dataclass

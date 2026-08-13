@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from grounded_prospector.infra.retry import (
+from b2b_prospector.infra.retry import (
     RetryError,
     full_jitter,
     is_transient,

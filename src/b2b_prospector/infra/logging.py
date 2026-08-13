@@ -49,4 +49,4 @@ def setup_logging(*, verbose: bool = False) -> logging.Logger:
     for noisy in ("httpx", "httpcore", "google_genai", "google.genai"):
         logging.getLogger(noisy).setLevel(logging.WARNING)
 
-    return logging.getLogger("grounded_prospector")
+    return logging.getLogger("b2b_prospector")

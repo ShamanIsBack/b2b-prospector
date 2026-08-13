@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from grounded_prospector.urls import canonicalise_profile_url, dedupe_key, is_linkedin_profile
+from b2b_prospector.urls import canonicalise_profile_url, dedupe_key, is_linkedin_profile
 
 CANONICAL = "https://www.linkedin.com/in/jane-doe"
 

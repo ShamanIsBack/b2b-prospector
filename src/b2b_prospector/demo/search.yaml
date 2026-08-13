@@ -1,4 +1,4 @@
-# Search brief used by `grounded-prospector run --demo`.
+# Search brief used by `b2b-prospector run --demo`.
 # These companies and people are fictional; see demo/__init__.py.
 location: Dubai
 country: ae
