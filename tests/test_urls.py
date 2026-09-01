@@ -31,7 +31,7 @@ def test_all_profile_url_variants_collapse_to_one_canonical_form(url: str) -> No
 @pytest.mark.parametrize(
     "url",
     [
-        "https://www.linkedin.com/company/the-circle-events",
+        "https://www.linkedin.com/company/dune-and-palm-events",
         "https://www.linkedin.com/posts/jane-doe_activity-123",
         "https://www.linkedin.com/jobs/view/123456",
         "https://www.linkedin.com/in/",

@@ -108,8 +108,8 @@ data, full types) and `run_report.json` (what the run cost and discarded).
 - **Duplicate humans.** Deduplication is by profile URL and cannot merge two genuinely
   different URLs. Some people hold two LinkedIn profiles.
 - **Long company names.** The gate reads the result *title*, and Google truncates long titles
-  with an ellipsis. A company called "Nordlicht Ferienhäuser und Aktivreisen" gets cut off mid-name, so real staff
-  score zero title-verified. If a company shows many rows and no verified ones, read the rows
+  with an ellipsis. A company called "Nordlicht Ferienhäuser und Aktivreisen" gets cut off
+  mid-name, so real staff score zero title-verified. If a company shows many rows and no verified ones, read the rows
   before believing the flag — this is the one case where the gate is wrong rather than strict.
 
 **Filter on `Needs review`, not on confidence alone.** An exclusion veto flags a row without

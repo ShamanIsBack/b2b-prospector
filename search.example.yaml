@@ -5,9 +5,10 @@
 # need to touch -- .env holds API keys and infrastructure, nothing about *what*
 # you are looking for.
 #
-# The example below is the real target list from the project this tool was built
-# for: a small hospitality operator looking for B2B partners in one overseas market
-# Every company named below is invented.
+# The example below is a complete brief in company mode, of the shape this tool
+# was built for: a small hospitality operator looking for B2B partners in one
+# overseas market. Every company named here is invented -- replace the list with
+# your own targets before you run anything.
 
 # ---------------------------------------------------------------------------
 # What to search for
@@ -83,23 +84,23 @@ targets:
   # --- Boutique & bespoke travel ---
   - name: Falcon Bay Travel
     segment: boutique
-  - name: FalconBayTravel
+  - name: Silk Lantern Journeys
     segment: boutique
   - name: Oryx & Compass Travel
     segment: boutique
-  - name: Silk Lantern Journeys
+  - name: Northwind Bespoke Travel
     segment: boutique
 
   # --- MICE & incentive ---
-  - name: Lantern Court Incentives
-    segment: mice
   - name: Dune & Palm Events
     segment: mice
-  - name: Majlis Concierge
+  - name: GulfCo Events
+    segment: mice
+  - name: Lantern Court Incentives
+    segment: mice
+  - name: The Amber Quarter Events
     segment: mice
   - name: Sandstone Meetings Group
-    segment: mice
-  - name: GulfCo Events
     segment: mice
   - name: Zephyr Incentive Works
     segment: mice
@@ -107,7 +108,7 @@ targets:
   # --- Luxury concierge ---
   - name: Ivory Key Club
     segment: concierge
-  - name: Ivory Key Club
+  - name: Majlis Concierge
     segment: concierge
   - name: Verdigris Concierge
     segment: concierge

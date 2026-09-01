@@ -9,6 +9,24 @@
 Find B2B decision-makers from public search results — **without scraping, and with every row
 traceable to the result it came from.**
 
+## The problem
+
+A small hospitality business wants to sell to travel agencies abroad. It knows which companies
+it wants to reach; it has no idea *who* to contact inside them. Buying a lead list means paying
+for rows you cannot verify, in a market the vendor has never heard of. Doing it by hand means
+an afternoon per company on LinkedIn, and it does not scale past the first ten.
+
+The bottleneck is not finding companies. It is finding the one person at each company whose job
+is the thing you are selling — and being able to show, later, why you believed that.
+
+**What this produced:** 1,249 candidate profiles across three markets (UAE, Germany, Poland),
+of which 96 of 433 company-mode rows in the first market were graded ready to contact without
+further checking. Every one of those rows carries the search result it came from, so a
+salesperson can confirm it by opening a single link. Total search spend across all three
+markets: roughly **$0.13** — about 210 of Serper's 2,500 free queries.
+
+## What it does
+
 Give it companies to staff-map, or job-title phrases to find people by. It builds Google X-ray
 queries, runs them through a search API, and returns a scored, deduplicated CSV of LinkedIn
 profiles, each carrying the raw title, snippet and query it was derived from.
@@ -305,8 +323,8 @@ are from real runs across three markets.
 - **Job titles go stale.** A snippet reflects whenever the page was last indexed.
 - **The same person can hold two LinkedIn profiles.** Deduplication is by profile URL, which
   cannot merge genuinely distinct URLs.
-- **Names must be right.** `FalconBayTravel` returned nothing under any query shape; `Falcon Bay Travel`
-  returned a full page. Check a thin result before blaming the index.
+- **Names must be right.** `FalconBayTravel` returned nothing under any query shape;
+  `Falcon Bay Travel` returned a full page. Check a thin result before blaming the index.
 
 ## Development
 
@@ -325,6 +343,16 @@ would publish real individuals' personal data to no purpose, so a test asserts t
 known-fictional profile slugs ever appear in them. `scripts/record_fixture.py` will record a
 real Gemini response for anyone working on the grounding parser; its output is gitignored for
 the same reason.
+
+## Stack
+
+Python 3.11+ · [typer](https://typer.tiangolo.com/) CLI · async [httpx](https://www.python-httpx.org/)
+· [pydantic](https://docs.pydantic.dev/) v2 for the brief and settings · SQLite response cache ·
+[rich](https://rich.readthedocs.io/) tables · ruff + `mypy --strict` + pytest, run on every push
+by GitHub Actions.
+
+No database server, no queue, no model-serving. It is a CLI that writes a CSV, deliberately —
+the deliverable is a file someone opens in Excel.
 
 ## Further reading
 

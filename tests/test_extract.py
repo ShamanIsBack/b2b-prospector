@@ -186,10 +186,10 @@ class TestScoreProspect:
 
     def test_company_stopwords_do_not_block_a_match(self) -> None:
         result = score_prospect(
-            raw_title="Jane Doe - Director - Dune & Palm Events LLC | LinkedIn",
+            raw_title="Jane Doe - Director - Amber Quarter Events LLC | LinkedIn",
             name="Jane Doe",
             headline="Director",
-            target="Dune & Palm Events",
+            target="The Amber Quarter Events",
             roles=ROLES,
         )
         assert not result.needs_review

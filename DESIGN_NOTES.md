@@ -192,10 +192,10 @@ plan before running it. It changed the plan nearly every time.
 
 - The Dubai probe showed the **geographic phrase**, not the role filter, was suppressing
   results — the opposite of the hypothesis. It also killed the proposed fix in three queries,
-  and found a company name that was simply wrong (`FalconBayTravel` → `Falcon Bay Travel`, nothing → a
-  full page).
-- The German probe found `Nordlicht Reisen` should be `Nordlicht Busreisen`, and that a 30-year coach
-  operator has no LinkedIn presence at all — a fact about the market, not a bug.
+  and found a company name that was simply wrong (`FalconBayTravel` → `Falcon Bay Travel`,
+  nothing → a full page).
+- The German probe found `Nordlicht Reisen` should be `Nordlicht Busreisen`, and that a
+  30-year coach operator has no LinkedIn presence at all — a fact about the market, not a bug.
 
 ### `country` biases ranking; it does not restrict language
 
@@ -226,8 +226,8 @@ rather than trusted to the query.
 ### The gate reads a truncated string
 
 Google truncates long result titles with an ellipsis, and the company gate reads the title. A
-company called "Nordlicht Ferienhäuser und Aktivreisen" is cut off mid-name, so genuine staff score zero
-title-verified. The gate is not wrong about the evidence; the evidence arrived clipped.
+company called "Nordlicht Ferienhäuser und Aktivreisen" is cut off mid-name, so genuine
+staff score zero title-verified. The gate is not wrong about the evidence; the evidence arrived clipped.
 
 ---
 
