@@ -10,6 +10,13 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# Least privilege for the workflow token. This job only ever reads the checkout;
+# it publishes nothing, comments on nothing and pushes nowhere. Declaring that
+# here means a future step cannot quietly acquire write access to the repository
+# by inheriting a permissive default.
+permissions:
+  contents: read
+
 env:
   # The suite must never reach the network. An accidental live call would fail
   # here rather than quietly passing on a contributor's own credentials.
