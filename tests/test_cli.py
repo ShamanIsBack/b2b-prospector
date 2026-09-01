@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import csv
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -23,6 +24,24 @@ from b2b_prospector.providers.base import Capabilities, ProviderAuthError, Searc
 from b2b_prospector.targets import load_brief
 
 runner = CliRunner()
+
+_ANSI = re.compile(r"\x1b\[[0-9;]*m")
+
+
+def visible(output: str) -> str:
+    """Return what a human reads, with Rich's colour codes stripped out.
+
+    Typer renders its error panels through Rich, which styles option names --
+    and it styles the dashes separately from the word, so escape codes land
+    *between* them. The literal "--demo" is then absent from the raw string even
+    though the user plainly sees it on screen. Whether that styling happens at
+    all depends on terminal detection, which is why an assertion against the raw
+    output passes locally and fails on CI.
+
+    Assert against this, not `result.output`, whenever the expected text could
+    be styled -- option names above all.
+    """
+    return _ANSI.sub("", output)
 
 
 @pytest.fixture(autouse=True)
@@ -111,13 +130,13 @@ class TestDryRun:
         result = runner.invoke(app, ["run", "--demo", "--dry-run", "--out", str(out)])
 
         assert result.exit_code == 0
-        assert "site:linkedin.com/in/" in result.output
-        assert "Nothing was sent" in result.output
+        assert "site:linkedin.com/in/" in visible(result.output)
+        assert "Nothing was sent" in visible(result.output)
         assert not out.exists()
 
     def test_dry_run_costs_nothing_on_the_fixture_backend(self) -> None:
         result = runner.invoke(app, ["run", "--demo", "--dry-run"])
-        assert "$0.000" in result.output
+        assert "$0.000" in visible(result.output)
 
 
 class TestMissingCredentials:
@@ -127,8 +146,8 @@ class TestMissingCredentials:
         )
         result = runner.invoke(app, ["run", "--provider", "serper"])
         assert result.exit_code != 0
-        assert "SERPER_API_KEY" in result.output
-        assert "serper.dev" in result.output
+        assert "SERPER_API_KEY" in visible(result.output)
+        assert "serper.dev" in visible(result.output)
 
     def test_gemini_without_a_key_explains_how_to_get_one(self) -> None:
         result = runner.invoke(app, ["run", "--provider", "gemini", "--demo"])
@@ -176,7 +195,7 @@ class TestRejectedCredentials:
         result = runner.invoke(app, ["run", "--out", str(out)])
 
         assert result.exit_code == 2
-        assert "rejected the API key" in result.output
+        assert "rejected the API key" in visible(result.output)
         assert backend.closed, "the backend must be released even on failure"
         assert not out.exists(), "a failed run must not leave an empty deliverable"
 
@@ -215,7 +234,7 @@ targets:
         result = runner.invoke(
             app, ["run", "--search", str(brief), "--provider", "fixture", "--dry-run"]
         )
-        assert "up to 2 pages" in " ".join(result.output.split())
+        assert "up to 2 pages" in " ".join(visible(result.output).split())
 
     def test_cli_pages_flag_overrides_the_brief(self, tmp_path: Path) -> None:
         brief = self.write_brief(tmp_path)
@@ -223,7 +242,7 @@ targets:
             app,
             ["run", "--search", str(brief), "--provider", "fixture", "--dry-run", "--pages", "1"],
         )
-        assert "up to 1 pages" in " ".join(result.output.split())
+        assert "up to 1 pages" in " ".join(visible(result.output).split())
 
     def test_min_confidence_from_the_brief_filters_output(self, tmp_path: Path) -> None:
         """A strict brief should drop the weak demo rows without any CLI flag."""
@@ -257,20 +276,20 @@ class TestOtherCommands:
         result = runner.invoke(app, ["providers"])
         assert result.exit_code == 0
         for name in ("serper", "gemini", "fixture"):
-            assert name in result.output
+            assert name in visible(result.output)
 
     def test_version_prints_the_package_version(self) -> None:
         result = runner.invoke(app, ["version"])
         assert result.exit_code == 0
-        assert "b2b-prospector" in result.output
+        assert "b2b-prospector" in visible(result.output)
 
     def test_no_arguments_shows_help(self) -> None:
         result = runner.invoke(app, [])
-        assert "Usage" in result.output
+        assert "Usage" in visible(result.output)
 
     def test_a_missing_search_brief_points_at_the_way_forward(self) -> None:
         """A fresh clone hits this first, so it must not be a dead end."""
         result = runner.invoke(app, ["run", "--provider", "fixture"])
         assert result.exit_code != 0
-        assert "not found" in result.output
-        assert "--demo" in result.output
+        assert "not found" in visible(result.output)
+        assert "--demo" in visible(result.output)
